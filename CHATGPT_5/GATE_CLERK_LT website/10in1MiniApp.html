@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10-in-1 Mini-App Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .main-bg {
+            background-color: #1a202c; /* Default dark mode */
+        }
+        .text-main {
+            color: #f7fafc; /* Default dark mode */
+        }
+        .nav-item {
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            transform: scale(1);
+        }
+        .nav-item:hover {
+            transform: scale(1.05);
+        }
+        .app-container {
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        /* Dark Mode */
+        .dark .main-bg { background-color: #1a202c; }
+        .dark .text-main { color: #f7fafc; }
+        .dark .bg-surface { background-color: #2d3748; }
+        .dark .text-surface { color: #cbd5e0; }
+        .dark .border-surface { border-color: #4a5568; }
+        .dark .placeholder-text { color: #a0aec0; }
+        .dark .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.12); }
+        /* Light Mode */
+        .light .main-bg { background-color: #f7fafc; }
+        .light .text-main { color: #2d3748; }
+        .light .bg-surface { background-color: #e2e8f0; }
+        .light .text-surface { color: #4a5568; }
+        .light .border-surface { border-color: #cbd5e0; }
+        .light .placeholder-text { color: #a0aec0; }
+    </style>
+</head>
+<body class="main-bg text-main min-h-screen flex flex-col items-center p-4 transition-colors duration-300">
+
+    <!-- Header and Dark Mode Toggle -->
+    <header class="w-full max-w-6xl flex justify-between items-center py-4 px-6 mb-4">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-400">10-in-1 App Hub</h1>
+        <button id="theme-toggle" class="px-3 py-2 text-xs sm:text-sm bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg shadow-md transition-colors duration-200">
+            Toggle Light/Dark
+        </button>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="w-full max-w-6xl bg-surface rounded-xl p-4 mb-8 shadow-lg">
+        <div class="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-10 gap-4">
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="todo">To-Do List</button>
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="calculator">Calculator</button>
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="unit-converter">Unit Converter</button>
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="weather">Weather</button>
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="clock">Clock</button>
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="draw">Draw Pad</button>
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="rps">RPS Game</button>
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="quotes">Quotes</button>
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="gallery">Gallery</button>
+            <button class="nav-item p-2 rounded-xl text-sm md:text-base text-center font-semibold bg-gray-700 hover:bg-blue-600 transition-colors duration-200" data-app="quiz">Quiz</button>
+        </div>
+    </nav>
+
+    <!-- Main App Container -->
+    <main id="app-container" class="w-full max-w-4xl bg-surface rounded-xl p-8 shadow-xl flex flex-col items-center">
+        <!-- Apps will be injected here -->
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const appContainer = document.getElementById('app-container');
+            const navButtons = document.querySelectorAll('.nav-item');
+            const themeToggleBtn = document.getElementById('theme-toggle');
+
+            // Set initial theme
+            document.body.classList.add('dark');
+
+            // --- THEME TOGGLE LOGIC ---
+            themeToggleBtn.addEventListener('click', () => {
+                document.body.classList.toggle('light');
+                document.body.classList.toggle('dark');
+            });
+
+            // --- APP SWITCHER LOGIC ---
+            function renderApp(appName) {
+                appContainer.innerHTML = '';
+                navButtons.forEach(btn => btn.classList.remove('bg-blue-600'));
+                const activeBtn = document.querySelector(`[data-app="${appName}"]`);
+                if (activeBtn) {
+                    activeBtn.classList.add('bg-blue-600');
+                }
+                
+                // Switch statement to render the correct app
+                switch (appName) {
+                    case 'todo': initTodoApp(); break;
+                    case 'calculator': initCalculatorApp(); break;
+                    case 'unit-converter': initUnitConverterApp(); break;
+                    case 'weather': initWeatherApp(); break;
+                    case 'clock': initClockApp(); break;
+                    case 'draw': initDrawApp(); break;
+                    case 'rps': initRPSApp(); break;
+                    case 'quotes': initQuotesApp(); break;
+                    case 'gallery': initGalleryApp(); break;
+                    case 'quiz': initQuizApp(); break;
+                    default:
+                        appContainer.innerHTML = `<div class="text-center p-8">
+                            <h2 class="text-2xl font-bold">Welcome!</h2>
+                            <p class="mt-4 text-surface">Select an app from the navigation bar above to get started.</p>
+                        </div>`;
+                }
+            }
+
+            // Event listeners for navigation buttons
+            navButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const appName = e.target.dataset.app;
+                    renderApp(appName);
+                });
+            });
+
+            // Initial render
+            renderApp(null);
+
+            // --- MINI-APP IMPLEMENTATIONS ---
+
+            // 1. To-Do List App
+            function initTodoApp() {
+                appContainer.innerHTML = `
+                    <div class="w-full p-4 space-y-4">
+                        <h2 class="text-2xl font-bold text-center">To-Do List</h2>
+                        <div class="flex space-x-2">
+                            <input id="todo-input" type="text" class="flex-1 p-3 rounded-lg bg-gray-700 text-gray-100 placeholder-text border border-surface focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Add a new task...">
+                            <button id="add-todo-btn" class="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Add</button>
+                        </div>
+                        <ul id="todo-list" class="space-y-2"></ul>
+                    </div>
+                `;
+                const todoInput = document.getElementById('todo-input');
+                const addTodoBtn = document.getElementById('add-todo-btn');
+                const todoList = document.getElementById('todo-list');
+
+                addTodoBtn.addEventListener('click', () => {
+                    const task = todoInput.value.trim();
+                    if (task) {
+                        const li = document.createElement('li');
+                        li.className = 'flex items-center justify-between p-3 rounded-lg bg-gray-700';
+                        li.innerHTML = `
+                            <span class="flex-1">${task}</span>
+                            <button class="delete-btn text-red-400 hover:text-red-500 transition-colors ml-4">&times;</button>
+                        `;
+                        todoList.appendChild(li);
+                        todoInput.value = '';
+
+                        li.querySelector('.delete-btn').addEventListener('click', () => {
+                            li.remove();
+                        });
+                    }
+                });
+            }
+
+            // 2. Calculator App
+            function initCalculatorApp() {
+                appContainer.innerHTML = `
+                    <div class="p-4 rounded-xl shadow-lg bg-gray-700 w-full max-w-sm">
+                        <div id="calc-display" class="bg-gray-800 text-right p-4 rounded-lg text-4xl font-mono mb-4 text-white">0</div>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">C</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">(</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">)</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-orange-500 hover:bg-orange-400">/</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">7</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">8</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">9</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-orange-500 hover:bg-orange-400">*</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">4</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">5</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">6</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-orange-500 hover:bg-orange-400">-</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">1</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">2</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">3</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-orange-500 hover:bg-orange-400">+</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold col-span-2 bg-gray-600 hover:bg-gray-500">0</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-gray-600 hover:bg-gray-500">.</button>
+                            <button class="calc-btn p-4 rounded-lg text-xl font-bold bg-blue-600 hover:bg-blue-500">=</button>
+                        </div>
+                    </div>
+                `;
+                const display = document.getElementById('calc-display');
+                let currentInput = '0';
+                let operator = null;
+                let firstOperand = null;
+
+                const buttons = document.querySelectorAll('.calc-btn');
+                buttons.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const value = e.target.textContent;
+                        if (value === 'C') {
+                            currentInput = '0';
+                            operator = null;
+                            firstOperand = null;
+                        } else if (value === '=') {
+                            try {
+                                currentInput = eval(firstOperand + operator + currentInput);
+                                firstOperand = null;
+                                operator = null;
+                            } catch (error) {
+                                currentInput = 'Error';
+                            }
+                        } else if (['+', '-', '*', '/'].includes(value)) {
+                            firstOperand = currentInput;
+                            operator = value;
+                            currentInput = '0';
+                        } else {
+                            if (currentInput === '0' || currentInput === 'Error') {
+                                currentInput = value;
+                            } else {
+                                currentInput += value;
+                            }
+                        }
+                        display.textContent = currentInput;
+                    });
+                });
+            }
+
+            // 3. Unit Converter App
+            function initUnitConverterApp() {
+                appContainer.innerHTML = `
+                    <div class="w-full p-4 space-y-4">
+                        <h2 class="text-2xl font-bold text-center">Unit Converter</h2>
+                        <div class="flex flex-col space-y-2">
+                            <label for="from-unit" class="text-gray-400">From:</label>
+                            <select id="from-unit" class="p-3 rounded-lg bg-gray-700 text-gray-100 border border-surface focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                            <input id="unit-input" type="number" step="any" class="p-3 rounded-lg bg-gray-700 text-gray-100 placeholder-text border border-surface focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter value">
+                        </div>
+                        <div class="flex flex-col space-y-2">
+                            <label for="to-unit" class="text-gray-400">To:</label>
+                            <select id="to-unit" class="p-3 rounded-lg bg-gray-700 text-gray-100 border border-surface focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                            <input id="unit-output" type="text" class="p-3 rounded-lg bg-gray-700 text-gray-100 placeholder-text border border-surface" readonly>
+                        </div>
+                    </div>
+                `;
+                const fromUnitSelect = document.getElementById('from-unit');
+                const toUnitSelect = document.getElementById('to-unit');
+                const unitInput = document.getElementById('unit-input');
+                const unitOutput = document.getElementById('unit-output');
+                
+                const units = {
+                    length: {
+                        'meter': 1, 'kilometer': 1000, 'centimeter': 0.01, 'millimeter': 0.001, 'foot': 0.3048, 'inch': 0.0254
+                    },
+                    mass: {
+                        'kilogram': 1, 'gram': 0.001, 'pound': 0.453592, 'ounce': 0.0283495
+                    }
+                };
+                
+                const unitOptions = Object.keys(units.length).concat(Object.keys(units.mass));
+                unitOptions.forEach(unit => {
+                    const option1 = document.createElement('option');
+                    option1.value = unit; option1.textContent = unit; fromUnitSelect.appendChild(option1);
+                    const option2 = document.createElement('option');
+                    option2.value = unit; option2.textContent = unit; toUnitSelect.appendChild(option2);
+                });
+
+                function convert() {
+                    const fromVal = parseFloat(unitInput.value);
+                    const fromUnit = fromUnitSelect.value;
+                    const toUnit = toUnitSelect.value;
+                    
+                    if (isNaN(fromVal)) {
+                        unitOutput.value = '';
+                        return;
+                    }
+
+                    let baseVal;
+                    if (units.length[fromUnit]) {
+                        baseVal = fromVal * units.length[fromUnit];
+                        if (units.length[toUnit]) {
+                            unitOutput.value = baseVal / units.length[toUnit];
+                        }
+                    } else if (units.mass[fromUnit]) {
+                        baseVal = fromVal * units.mass[fromUnit];
+                        if (units.mass[toUnit]) {
+                            unitOutput.value = baseVal / units.mass[toUnit];
+                        }
+                    } else {
+                        unitOutput.value = 'Invalid Units';
+                    }
+                }
+
+                unitInput.addEventListener('input', convert);
+                fromUnitSelect.addEventListener('change', convert);
+                toUnitSelect.addEventListener('change', convert);
+            }
+            
+            // 4. Weather App (Static data)
+            function initWeatherApp() {
+                appContainer.innerHTML = `
+                    <div class="w-full p-4 space-y-4 text-center">
+                        <h2 class="text-2xl font-bold">Weather App</h2>
+                        <p class="text-gray-400">Displaying static data. No API calls.</p>
+                        <div class="bg-gray-700 rounded-xl p-6 shadow-md">
+                            <h3 id="weather-city" class="text-4xl font-semibold">New Delhi</h3>
+                            <p id="weather-temp" class="text-6xl font-extrabold text-blue-400 mt-2">32°C</p>
+                            <p id="weather-condition" class="text-2xl text-gray-300">Hazy Sunshine</p>
+                            <div class="flex justify-around items-center mt-6 text-xl">
+                                <div><p>Humidity</p><p id="weather-humidity">70%</p></div>
+                                <div><p>Wind</p><p id="weather-wind">10 km/h</p></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 5. Clock App
+            function initClockApp() {
+                appContainer.innerHTML = `
+                    <div class="w-full p-4 space-y-4 text-center">
+                        <h2 class="text-2xl font-bold">Digital Clock</h2>
+                        <div class="bg-gray-700 rounded-xl p-6 shadow-md w-full max-w-md">
+                            <div id="clock-display" class="text-6xl font-mono font-bold text-green-400">00:00:00</div>
+                            <div id="date-display" class="text-2xl font-semibold text-gray-300 mt-2"></div>
+                        </div>
+                    </div>
+                `;
+                const clockDisplay = document.getElementById('clock-display');
+                const dateDisplay = document.getElementById('date-display');
+                
+                function updateClock() {
+                    const now = new Date();
+                    const hours = now.getHours().toString().padStart(2, '0');
+                    const minutes = now.getMinutes().toString().padStart(2, '0');
+                    const seconds = now.getSeconds().toString().padStart(2, '0');
+                    clockDisplay.textContent = `${hours}:${minutes}:${seconds}`;
+                    dateDisplay.textContent = now.toDateString();
+                }
+                setInterval(updateClock, 1000);
+                updateClock();
+            }
+
+            // 6. Draw Pad App
+            function initDrawApp() {
+                appContainer.innerHTML = `
+                    <div class="w-full p-4 space-y-4 text-center">
+                        <h2 class="text-2xl font-bold">Drawing Pad</h2>
+                        <div class="flex justify-center space-x-2">
+                            <input type="color" id="color-picker" value="#ffffff" class="w-10 h-10 rounded-full border-2 border-surface cursor-pointer">
+                            <button id="clear-btn" class="p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">Clear</button>
+                        </div>
+                        <canvas id="draw-canvas" class="bg-gray-800 rounded-xl border border-surface"></canvas>
+                    </div>
+                `;
+                const canvas = document.getElementById('draw-canvas');
+                const clearBtn = document.getElementById('clear-btn');
+                const colorPicker = document.getElementById('color-picker');
+                const ctx = canvas.getContext('2d');
+                canvas.width = appContainer.clientWidth - 32;
+                canvas.height = 400;
+
+                let isDrawing = false;
+                let lastX = 0;
+                let lastY = 0;
+
+                function draw(e) {
+                    if (!isDrawing) return;
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(e.offsetX, e.offsetY);
+                    ctx.strokeStyle = colorPicker.value;
+                    ctx.lineWidth = 5;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+                    [lastX, lastY] = [e.offsetX, e.offsetY];
+                }
+
+                canvas.addEventListener('mousedown', (e) => {
+                    isDrawing = true;
+                    [lastX, lastY] = [e.offsetX, e.offsetY];
+                });
+                canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mouseup', () => isDrawing = false);
+                canvas.addEventListener('mouseout', () => isDrawing = false);
+                clearBtn.addEventListener('click', () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                });
+            }
+            
+            // 7. Rock, Paper, Scissors App
+            function initRPSApp() {
+                appContainer.innerHTML = `
+                    <div class="w-full p-4 space-y-4 text-center">
+                        <h2 class="text-2xl font-bold">Rock, Paper, Scissors</h2>
+                        <div id="rps-choices" class="flex justify-center space-x-4 text-6xl">
+                            <button class="rps-choice" data-choice="rock">✊</button>
+                            <button class="rps-choice" data-choice="paper">✋</button>
+                            <button class="rps-choice" data-choice="scissors">✌️</button>
+                        </div>
+                        <div class="text-3xl font-bold" id="rps-result">Make your choice!</div>
+                        <p id="rps-score" class="text-xl">You: 0 | Computer: 0</p>
+                    </div>
+                `;
+                const choices = document.querySelectorAll('.rps-choice');
+                const resultDisplay = document.getElementById('rps-result');
+                const scoreDisplay = document.getElementById('rps-score');
+                let userScore = 0;
+                let computerScore = 0;
+                const outcomes = {
+                    'rock': {'scissors': 'win', 'paper': 'lose', 'rock': 'draw'},
+                    'paper': {'rock': 'win', 'scissors': 'lose', 'paper': 'draw'},
+                    'scissors': {'paper': 'win', 'rock': 'lose', 'scissors': 'draw'}
+                };
+
+                choices.forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const userChoice = e.target.dataset.choice;
+                        const compChoices = ['rock', 'paper', 'scissors'];
+                        const compChoice = compChoices[Math.floor(Math.random() * 3)];
+                        const result = outcomes[userChoice][compChoice];
+                        
+                        let message = `You chose ${userChoice}, computer chose ${compChoice}. `;
+                        if (result === 'win') {
+                            userScore++;
+                            message += 'You win!';
+                        } else if (result === 'lose') {
+                            computerScore++;
+                            message += 'You lose!';
+                        } else {
+                            message += 'It\'s a draw!';
+                        }
+                        resultDisplay.textContent = message;
+                        scoreDisplay.textContent = `You: ${userScore} | Computer: ${computerScore}`;
+                    });
+                });
+            }
+
+            // 8. Quote Generator App
+            function initQuotesApp() {
+                appContainer.innerHTML = `
+                    <div class="w-full p-4 space-y-4 text-center">
+                        <h2 class="text-2xl font-bold">Quote Generator</h2>
+                        <div class="bg-gray-700 rounded-xl p-6 shadow-md min-h-[150px] flex flex-col justify-center">
+                            <p id="quote-text" class="text-2xl italic text-gray-100">Click the button below to get a new quote.</p>
+                            <p id="quote-author" class="mt-4 text-right text-gray-400">- Author</p>
+                        </div>
+                        <button id="new-quote-btn" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">New Quote</button>
+                    </div>
+                `;
+                const quoteText = document.getElementById('quote-text');
+                const quoteAuthor = document.getElementById('quote-author');
+                const newQuoteBtn = document.getElementById('new-quote-btn');
+                
+                const quotes = [
+                    {text: "The only way to do great work is to love what you do.", author: "Steve Jobs"},
+                    {text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt"},
+                    {text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill"},
+                    {text: "The secret of getting ahead is getting started.", author: "Mark Twain"}
+                ];
+
+                newQuoteBtn.addEventListener('click', () => {
+                    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+                    quoteText.textContent = `"${randomQuote.text}"`;
+                    quoteAuthor.textContent = `- ${randomQuote.author}`;
+                });
+            }
+
+            // 9. Image Gallery App
+            function initGalleryApp() {
+                appContainer.innerHTML = `
+                    <div class="w-full p-4 space-y-4 text-center">
+                        <h2 class="text-2xl font-bold">Image Gallery</h2>
+                        <div id="gallery-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            <img src="https://placehold.co/400x300/2d3748/ffffff?text=Image+1" alt="Image 1" class="rounded-lg shadow-md hover:scale-105 transition-transform duration-200 cursor-pointer">
+                            <img src="https://placehold.co/400x300/4a5568/ffffff?text=Image+2" alt="Image 2" class="rounded-lg shadow-md hover:scale-105 transition-transform duration-200 cursor-pointer">
+                            <img src="https://placehold.co/400x300/718096/ffffff?text=Image+3" alt="Image 3" class="rounded-lg shadow-md hover:scale-105 transition-transform duration-200 cursor-pointer">
+                            <img src="https://placehold.co/400x300/a0aec0/2d3748?text=Image+4" alt="Image 4" class="rounded-lg shadow-md hover:scale-105 transition-transform duration-200 cursor-pointer">
+                            <img src="https://placehold.co/400x300/cbd5e0/2d3748?text=Image+5" alt="Image 5" class="rounded-lg shadow-md hover:scale-105 transition-transform duration-200 cursor-pointer">
+                            <img src="https://placehold.co/400x300/f7fafc/2d3748?text=Image+6" alt="Image 6" class="rounded-lg shadow-md hover:scale-105 transition-transform duration-200 cursor-pointer">
+                            <img src="https://placehold.co/400x300/4299e1/ffffff?text=Image+7" alt="Image 7" class="rounded-lg shadow-md hover:scale-105 transition-transform duration-200 cursor-pointer">
+                            <img src="https://placehold.co/400x300/63b3ed/ffffff?text=Image+8" alt="Image 8" class="rounded-lg shadow-md hover:scale-105 transition-transform duration-200 cursor-pointer">
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 10. Simple Quiz App
+            function initQuizApp() {
+                const quizQuestions = [
+                    {
+                        question: "What is the capital of France?",
+                        options: ["Berlin", "Madrid", "Paris", "Rome"],
+                        answer: "Paris"
+                    },
+                    {
+                        question: "Which planet is known as the Red Planet?",
+                        options: ["Earth", "Mars", "Jupiter", "Venus"],
+                        answer: "Mars"
+                    },
+                    {
+                        question: "What is the largest ocean on Earth?",
+                        options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+                        answer: "Pacific Ocean"
+                    }
+                ];
+                let currentQuestionIndex = 0;
+                let score = 0;
+
+                function renderQuiz() {
+                    if (currentQuestionIndex >= quizQuestions.length) {
+                        appContainer.innerHTML = `
+                            <div class="w-full p-4 text-center">
+                                <h2 class="text-3xl font-bold">Quiz Complete!</h2>
+                                <p class="text-xl mt-4">Your score: ${score} out of ${quizQuestions.length}</p>
+                                <button id="restart-quiz-btn" class="px-6 py-3 mt-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Restart Quiz</button>
+                            </div>
+                        `;
+                        document.getElementById('restart-quiz-btn').addEventListener('click', () => {
+                            currentQuestionIndex = 0;
+                            score = 0;
+                            renderQuiz();
+                        });
+                        return;
+                    }
+
+                    const q = quizQuestions[currentQuestionIndex];
+                    appContainer.innerHTML = `
+                        <div class="w-full p-4 space-y-4">
+                            <h2 class="text-xl font-bold text-center">${currentQuestionIndex + 1}. ${q.question}</h2>
+                            <div id="quiz-options" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <!-- Options will be injected here -->
+                            </div>
+                            <div id="quiz-feedback" class="text-center text-lg mt-4"></div>
+                        </div>
+                    `;
+                    const optionsContainer = document.getElementById('quiz-options');
+                    q.options.forEach(option => {
+                        const btn = document.createElement('button');
+                        btn.textContent = option;
+                        btn.className = 'p-4 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors';
+                        btn.addEventListener('click', () => checkAnswer(option));
+                        optionsContainer.appendChild(btn);
+                    });
+                }
+
+                function checkAnswer(selectedOption) {
+                    const q = quizQuestions[currentQuestionIndex];
+                    const feedback = document.getElementById('quiz-feedback');
+                    const options = document.querySelectorAll('#quiz-options button');
+                    
+                    options.forEach(btn => btn.disabled = true);
+
+                    if (selectedOption === q.answer) {
+                        score++;
+                        feedback.textContent = "Correct!";
+                        feedback.className = 'text-center text-lg mt-4 text-green-400';
+                    } else {
+                        feedback.textContent = `Incorrect. The correct answer was "${q.answer}".`;
+                        feedback.className = 'text-center text-lg mt-4 text-red-400';
+                    }
+                    setTimeout(() => {
+                        currentQuestionIndex++;
+                        renderQuiz();
+                    }, 1500);
+                }
+                renderQuiz();
+            }
+        });
+    </script>
+</body>
+</html>

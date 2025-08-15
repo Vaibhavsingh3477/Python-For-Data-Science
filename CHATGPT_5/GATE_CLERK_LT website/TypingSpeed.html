@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typing Speed Test</title>
+    <!-- Tailwind CSS for a modern, responsive design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDK imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Sign in anonymously or with a custom token
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            }
+            // Once authenticated, make the Firestore variables globally available
+            window.db = db;
+            window.auth = auth;
+            window.appId = appId;
+            window.userId = auth.currentUser.uid;
+            
+            // Fire a custom event to signal that Firebase is ready
+            const event = new Event('firebaseReady');
+            window.dispatchEvent(event);
+        });
+    </script>
+    <style>
+        /* Custom scrollbar for the text area */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #4a5568; /* Tailwind gray-600 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background-color: #2d3748; /* Tailwind gray-800 */
+        }
+        /* Custom background for the "unique wallpaper" effect */
+        .unique-wallpaper {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            background-size: 400% 400%;
+            animation: gradient-shift 15s ease infinite;
+        }
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        /* Fade animation for the modal */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .time-low {
+            animation: pulse-red 1s infinite;
+        }
+        @keyframes pulse-red {
+            0%, 100% { color: #f87171; }
+            50% { color: #b91c1c; }
+        }
+        /* Dark Mode styles */
+        body.dark .bg-gray-900 { background-color: #1a202c; }
+        body.dark .bg-gray-800 { background-color: #2d3748; }
+        body.dark .bg-gray-700 { background-color: #4a5568; }
+        body.dark .text-gray-100 { color: #f7fafc; }
+        body.dark .text-gray-400 { color: #a0aec0; }
+        body.dark .border-gray-600 { border-color: #4a5568; }
+        body.dark .text-blue-400 { color: #63b3ed; }
+        body.light .bg-gray-900 { background-color: #ffffff; }
+        body.light .bg-gray-800 { background-color: #f7fafc; }
+        body.light .bg-gray-700 { background-color: #edf2f7; }
+        body.light .text-gray-100 { color: #2d3748; }
+        body.light .text-gray-400 { color: #a0aec0; }
+        body.light .border-gray-600 { border-color: #e2e8f0; }
+        body.light .text-blue-400 { color: #4299e1; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 flex items-center justify-center min-h-screen p-4 unique-wallpaper dark">
+    <div class="bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl p-8 flex flex-col items-center space-y-6 relative">
+        <!-- Header Section -->
+        <h1 class="text-4xl font-extrabold text-blue-400">Typing Speed Test</h1>
+        <p class="text-gray-400 text-center max-w-md">How fast can you type? The timer starts when you begin typing. Hit Restart to try again!</p>
+
+        <!-- Mode & Time Options -->
+        <div class="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full justify-center">
+            <!-- Mode Buttons -->
+            <div class="flex space-x-2">
+                <button data-mode="timed" class="mode-btn px-4 py-2 text-sm bg-blue-600 text-white font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 active-mode-btn">Timed</button>
+                <button data-mode="word-count" class="mode-btn px-4 py-2 text-sm bg-gray-700 text-white font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">Word Count</button>
+            </div>
+            <!-- Time Buttons (only for Timed mode) -->
+            <div id="time-options" class="flex space-x-2">
+                <button data-time="15" class="time-btn px-4 py-2 text-sm bg-gray-700 text-white font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">15s</button>
+                <button data-time="30" class="time-btn px-4 py-2 text-sm bg-gray-700 text-white font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">30s</button>
+                <button data-time="60" class="time-btn px-4 py-2 text-sm bg-blue-600 text-white font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 active-time-btn">60s</button>
+                <button data-time="120" class="time-btn px-4 py-2 text-sm bg-gray-700 text-white font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">120s</button>
+            </div>
+        </div>
+
+        <!-- Custom Text Input Area -->
+        <div id="custom-text-area" class="w-full max-w-4xl p-0 hidden">
+             <textarea id="custom-prompt-input" class="w-full p-4 text-xl bg-gray-700 text-gray-100 rounded-xl shadow-lg border-2 border-gray-600 transition-colors duration-200" rows="5" placeholder="Paste or type your own text here..."></textarea>
+             <button id="set-custom-prompt-btn" class="w-full mt-2 p-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors duration-200">Start with Custom Text</button>
+        </div>
+
+        <!-- Display Area for WPM, Accuracy, and Time -->
+        <div class="flex justify-around w-full max-w-lg bg-gray-700 rounded-xl p-4 shadow-inner">
+            <div class="text-center">
+                <span id="wpm" class="block text-4xl font-bold text-green-400">0</span>
+                <span class="text-sm text-gray-300">WPM</span>
+            </div>
+            <div class="text-center">
+                <span id="accuracy" class="block text-4xl font-bold text-yellow-400">0%</span>
+                <span class="text-sm text-gray-300">Accuracy</span>
+            </div>
+            <div class="text-center">
+                <span id="timer" class="block text-4xl font-bold text-red-400 transition-colors duration-500">60</span>
+                <span class="text-sm text-gray-300">Time</span>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full max-w-lg bg-gray-700 rounded-full h-2.5 shadow-inner">
+            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%;"></div>
+        </div>
+
+        <!-- Text to be Typed -->
+        <div id="prompt" class="bg-gray-700 text-gray-300 rounded-xl p-6 text-xl leading-relaxed tracking-wide shadow-inner overflow-y-auto max-h-48 w-full">
+            <!-- Prompt text will be dynamically added here by JavaScript -->
+        </div>
+
+        <!-- User Input Field -->
+        <input type="text" id="typing-input" class="w-full max-w-lg p-4 text-xl bg-gray-700 text-gray-100 rounded-xl shadow-lg border-2 border-gray-600 transition-colors duration-200" placeholder="Start typing here to begin...">
+
+        <!-- Control Buttons -->
+        <div class="flex space-x-4">
+            <button id="restart-btn" class="w-full max-w-xs p-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl rounded-xl shadow-md transition-colors duration-200">
+                Restart
+            </button>
+            <button id="show-history-btn" class="w-full max-w-xs p-4 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xl rounded-xl shadow-md transition-colors duration-200">
+                My Scores
+            </button>
+        </div>
+
+
+        <!-- Final Results Modal -->
+        <div id="results-modal" class="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-10 hidden">
+            <div class="bg-gray-800 rounded-xl p-8 text-center space-y-4 shadow-2xl fade-in">
+                <h2 class="text-4xl font-extrabold text-blue-400">Test Complete!</h2>
+                <div class="flex justify-center space-x-8">
+                    <div>
+                        <span id="final-wpm" class="block text-5xl font-bold text-green-400">0</span>
+                        <span class="text-sm text-gray-400">WPM</span>
+                    </div>
+                    <div>
+                        <span id="final-accuracy" class="block text-5xl font-bold text-yellow-400">0%</span>
+                        <span class="text-sm text-gray-400">Accuracy</span>
+                    </div>
+                </div>
+                <button id="modal-restart-btn" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md">
+                    Try Again
+                </button>
+            </div>
+        </div>
+
+        <!-- History Modal -->
+        <div id="history-modal" class="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-10 hidden">
+            <div class="bg-gray-800 rounded-xl p-8 text-center space-y-4 shadow-2xl fade-in w-full max-w-lg">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-3xl font-extrabold text-blue-400">My Scores</h2>
+                    <button id="close-history-btn" class="text-gray-400 hover:text-gray-100">&times;</button>
+                </div>
+                <ul id="history-list" class="space-y-2 text-left h-64 overflow-y-auto custom-scrollbar-styling">
+                    <!-- History items will be populated here -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Dark/Light Mode Button -->
+        <button id="theme-toggle" class="absolute top-4 right-4 px-4 py-2 text-sm bg-gray-700 text-white font-bold rounded-lg shadow-md transition-colors duration-200">
+            Light Mode
+        </button>
+
+        <!-- User ID display -->
+        <div id="user-id-display" class="absolute bottom-4 left-4 text-xs text-gray-500">
+             User ID: <span id="user-id-span">...</span>
+        </div>
+    </div>
+
+    <script type="module">
+        // DOM element references
+        const promptEl = document.getElementById('prompt');
+        const inputEl = document.getElementById('typing-input');
+        const wpmEl = document.getElementById('wpm');
+        const accuracyEl = document.getElementById('accuracy');
+        const timerEl = document.getElementById('timer');
+        const restartBtn = document.getElementById('restart-btn');
+        const showHistoryBtn = document.getElementById('show-history-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const resultsModal = document.getElementById('results-modal');
+        const finalWpmEl = document.getElementById('final-wpm');
+        const finalAccuracyEl = document.getElementById('final-accuracy');
+        const modalRestartBtn = document.getElementById('modal-restart-btn');
+        const modeButtons = document.querySelectorAll('.mode-btn');
+        const timeButtons = document.querySelectorAll('.time-btn');
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const timeOptionsContainer = document.getElementById('time-options');
+        const customTextArea = document.getElementById('custom-text-area');
+        const customPromptInput = document.getElementById('custom-prompt-input');
+        const setCustomPromptBtn = document.getElementById('set-custom-prompt-btn');
+        const historyModal = document.getElementById('history-modal');
+        const closeHistoryBtn = document.getElementById('close-history-btn');
+        const historyList = document.getElementById('history-list');
+        const userIdSpan = document.getElementById('user-id-span');
+
+        // Typing test state variables
+        let testText = "";
+        let testTextChars = [];
+        let time = 60; // Initial time in seconds
+        let initialTime = 60;
+        let timerInterval;
+        let isTyping = false;
+        let charIndex = 0;
+        let correctChars = 0;
+        let incorrectChars = 0;
+        let currentMode = 'timed'; // 'timed' or 'word-count'
+
+        // Array of text prompts for the user to type
+        const prompts = {
+            english: [
+                "The quick brown fox jumps over the lazy dog. This is a classic pangram used to test typing skills and showcase all the letters of the English alphabet. It is a good phrase to practice with.",
+                "Technology has changed the way we live, work, and communicate. From the invention of the wheel to the rise of the internet, every innovation has shaped human history and paved the way for future discoveries. The digital revolution is a great example of this evolution."
+            ],
+            exam: [
+                "The Supreme Court of India is the highest judicial body and the final court of appeal. It has the power of judicial review to strike down laws and executive actions that violate the constitution. It also has original, appellate, and advisory jurisdiction."
+            ]
+        };
+
+        /**
+         * Saves the test results to Firestore.
+         * This function is asynchronous and should be awaited.
+         * @param {number} finalWPM
+         * @param {number} finalAccuracy
+         */
+        async function saveResultToFirestore(finalWPM, finalAccuracy) {
+            if (!window.db || !window.userId) {
+                console.error("Firebase not initialized or user not authenticated.");
+                return;
+            }
+
+            try {
+                // The collection path follows the security rules for private data.
+                const userScoresRef = collection(window.db, `artifacts/${window.appId}/users/${window.userId}/typing-results`);
+                await addDoc(userScoresRef, {
+                    wpm: finalWPM,
+                    accuracy: finalAccuracy,
+                    timestamp: serverTimestamp() // Use server timestamp for consistency
+                });
+                console.log("Score saved successfully.");
+            } catch (error) {
+                console.error("Error saving score:", error);
+            }
+        }
+
+        /**
+         * Fetches and displays the user's typing history from Firestore.
+         */
+        function fetchAndDisplayHistory() {
+             if (!window.db || !window.userId) {
+                console.error("Firebase not initialized or user not authenticated.");
+                return;
+             }
+             const userScoresRef = collection(window.db, `artifacts/${window.appId}/users/${window.userId}/typing-results`);
+             
+             // Use onSnapshot to listen for real-time updates
+             onSnapshot(userScoresRef, (snapshot) => {
+                 historyList.innerHTML = ''; // Clear the list
+                 const scores = [];
+                 snapshot.forEach(doc => {
+                     scores.push(doc.data());
+                 });
+                 
+                 // Sort the scores by timestamp in descending order
+                 scores.sort((a, b) => {
+                    const timeA = a.timestamp ? a.timestamp.seconds : 0;
+                    const timeB = b.timestamp ? b.timestamp.seconds : 0;
+                    return timeB - timeA;
+                 });
+
+                 if (scores.length === 0) {
+                     historyList.innerHTML = '<p class="text-center text-gray-400">No scores saved yet.</p>';
+                 } else {
+                     scores.forEach(score => {
+                         const li = document.createElement('li');
+                         const date = score.timestamp ? new Date(score.timestamp.seconds * 1000).toLocaleString() : 'N/A';
+                         li.innerHTML = `
+                            <div class="flex justify-between items-center bg-gray-700 p-3 rounded-lg shadow-inner">
+                                <span class="font-bold text-green-400">${score.wpm} WPM</span>
+                                <span class="font-bold text-yellow-400">${score.accuracy}% Accuracy</span>
+                                <span class="text-sm text-gray-400">${date}</span>
+                            </div>
+                         `;
+                         historyList.appendChild(li);
+                     });
+                 }
+             });
+        }
+
+
+        /**
+         * Initializes the typing test by setting a random prompt and resetting all state.
+         */
+        window.initializeTest = function (customText = null) {
+            // Hide the modal if it's visible
+            resultsModal.classList.add('hidden');
+
+            // Select a random prompt or use custom text
+            if (customText) {
+                 testText = customText;
+                 customTextArea.classList.add('hidden');
+                 promptEl.classList.remove('hidden');
+            } else {
+                 // Choose a prompt from the exam category if in timed mode for a more focused practice
+                 const category = (currentMode === 'timed' && initialTime === 60) ? 'exam' : 'english';
+                 const selectedPrompts = prompts[category] || prompts['english'];
+                 testText = selectedPrompts[Math.floor(Math.random() * selectedPrompts.length)];
+            }
+            
+            testTextChars = testText.split('');
+
+            // Clear previous content and render the new text
+            promptEl.innerHTML = '';
+            testTextChars.forEach(char => {
+                const span = document.createElement('span');
+                span.textContent = char;
+                promptEl.appendChild(span);
+            });
+
+            // Reset all state variables and UI elements
+            clearInterval(timerInterval);
+            time = initialTime;
+            charIndex = 0;
+            correctChars = 0;
+            incorrectChars = 0;
+            isTyping = false;
+            
+            inputEl.value = "";
+            inputEl.disabled = false;
+            wpmEl.textContent = '0';
+            accuracyEl.textContent = '0%';
+            timerEl.textContent = currentMode === 'timed' ? time : '∞';
+            timerEl.classList.remove('time-low');
+            progressBar.style.width = '0%';
+            
+            // Highlight the first character
+            if (testTextChars.length > 0) {
+                promptEl.children[0].classList.add('underline', 'underline-offset-2');
+            }
+
+            inputEl.focus();
+        };
+
+        /**
+         * Starts the timer countdown.
+         */
+        function startTimer() {
+            if (currentMode === 'timed' && !isTyping) {
+                isTyping = true;
+                timerInterval = setInterval(() => {
+                    time--;
+                    timerEl.textContent = time;
+                    if (time <= 10) {
+                        timerEl.classList.add('time-low');
+                    }
+
+                    if (time <= 0) {
+                        endTest();
+                    }
+                }, 1000);
+            } else if (currentMode === 'word-count' && !isTyping) {
+                isTyping = true;
+                time = 0;
+                timerInterval = setInterval(() => {
+                    time++;
+                    timerEl.textContent = time;
+                }, 1000);
+            }
+        }
+
+        /**
+         * Updates the WPM and Accuracy based on current progress.
+         */
+        function updateStats() {
+            const timeTaken = currentMode === 'timed' ? initialTime - time : time;
+            if (timeTaken <= 0) return;
+            const wordsTyped = (correctChars / 5);
+            const wpm = Math.floor((wordsTyped / timeTaken) * 60) || 0;
+            const accuracy = Math.floor((correctChars / (correctChars + incorrectChars)) * 100) || 0;
+            
+            wpmEl.textContent = wpm;
+            accuracyEl.textContent = `${accuracy}%`;
+
+            // Update progress bar
+            const progress = (charIndex / testTextChars.length) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+
+        /**
+         * Handles the user's typing input.
+         * @param {InputEvent} e The input event object.
+         */
+        function handleInput(e) {
+            startTimer();
+            
+            const typedChar = e.data;
+            const currentPromptChar = testTextChars[charIndex];
+
+            if (typedChar === null) { // Handle Backspace
+                if (charIndex > 0) {
+                    promptEl.children[charIndex].classList.remove('underline', 'underline-offset-2');
+                    
+                    charIndex--;
+                    const prevCharSpan = promptEl.children[charIndex];
+                    if (prevCharSpan.classList.contains('text-green-400')) {
+                        correctChars--;
+                    } else if (prevCharSpan.classList.contains('text-red-400')) {
+                        incorrectChars--;
+                    }
+                    prevCharSpan.classList.remove('text-green-400', 'text-red-400');
+                    prevCharSpan.classList.add('text-gray-300');
+                }
+            } else {
+                if (typedChar === currentPromptChar) {
+                    promptEl.children[charIndex].classList.add('text-green-400');
+                    correctChars++;
+                } else {
+                    promptEl.children[charIndex].classList.add('text-red-400');
+                    incorrectChars++;
+                }
+                
+                if (charIndex < promptEl.children.length - 1) {
+                     promptEl.children[charIndex].classList.remove('underline', 'underline-offset-2');
+                }
+                charIndex++;
+            }
+            
+            if (charIndex < promptEl.children.length) {
+                promptEl.children[charIndex].classList.add('underline', 'underline-offset-2');
+            }
+
+            updateStats();
+
+            // Check if test is finished
+            if (charIndex >= testTextChars.length) {
+                endTest();
+            }
+        }
+
+        /**
+         * Ends the typing test and shows final results in a modal.
+         */
+        async function endTest() {
+            clearInterval(timerInterval);
+            isTyping = false;
+            inputEl.disabled = true;
+            inputEl.value = "";
+            timerEl.classList.remove('time-low');
+            
+            const timeTaken = currentMode === 'timed' ? initialTime - time : time;
+            if (timeTaken <= 0) return; // Prevent division by zero
+            
+            const wordsTyped = correctChars / 5;
+            const finalWPM = Math.floor((wordsTyped / timeTaken) * 60) || 0;
+            const finalAccuracy = Math.floor((correctChars / (correctChars + incorrectChars)) * 100) || 0;
+            
+            finalWpmEl.textContent = finalWPM;
+            finalAccuracyEl.textContent = `${finalAccuracy}%`;
+            resultsModal.classList.remove('hidden');
+
+            // Save the result to Firestore
+            await saveResultToFirestore(finalWPM, finalAccuracy);
+        }
+
+        // Event listeners
+        inputEl.addEventListener('input', handleInput);
+        restartBtn.addEventListener('click', () => initializeTest());
+        modalRestartBtn.addEventListener('click', () => initializeTest());
+        setCustomPromptBtn.addEventListener('click', () => {
+             const customText = customPromptInput.value.trim();
+             if (customText) {
+                initializeTest(customText);
+             }
+        });
+
+        // Mode button event listeners
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentMode = btn.dataset.mode;
+                modeButtons.forEach(b => {
+                    b.classList.remove('active-mode-btn', 'bg-blue-600', 'hover:bg-blue-700');
+                    b.classList.add('bg-gray-700');
+                });
+                btn.classList.add('active-mode-btn', 'bg-blue-600', 'hover:bg-blue-700');
+                
+                if (currentMode === 'word-count') {
+                    timeOptionsContainer.classList.add('hidden');
+                    timerEl.textContent = '∞';
+                    customTextArea.classList.remove('hidden');
+                    promptEl.classList.add('hidden');
+                } else {
+                    timeOptionsContainer.classList.remove('hidden');
+                    timerEl.textContent = initialTime;
+                    customTextArea.classList.add('hidden');
+                    promptEl.classList.remove('hidden');
+                }
+                initializeTest();
+            });
+        });
+
+        // Time button event listeners
+        timeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                initialTime = parseInt(btn.dataset.time);
+                timeButtons.forEach(b => {
+                    b.classList.remove('active-time-btn', 'bg-blue-600', 'hover:bg-blue-700');
+                    b.classList.add('bg-gray-700');
+                });
+                btn.classList.add('active-time-btn', 'bg-blue-600', 'hover:bg-blue-700');
+                initializeTest();
+            });
+        });
+        
+        // Show/hide history modal
+        showHistoryBtn.addEventListener('click', () => {
+             historyModal.classList.remove('hidden');
+             fetchAndDisplayHistory();
+        });
+
+        closeHistoryBtn.addEventListener('click', () => {
+             historyModal.classList.add('hidden');
+        });
+
+        // Dark/Light mode toggle
+        themeToggleBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            document.body.classList.toggle('light');
+            themeToggleBtn.textContent = document.body.classList.contains('light') ? 'Dark Mode' : 'Light Mode';
+        });
+
+        // Wait for Firebase to initialize before calling initializeTest
+        window.addEventListener('firebaseReady', () => {
+            document.querySelector('[data-time="60"]').classList.add('bg-blue-600');
+            userIdSpan.textContent = window.userId;
+            window.initializeTest();
+        });
+
+    </script>
+</body>
+</html>

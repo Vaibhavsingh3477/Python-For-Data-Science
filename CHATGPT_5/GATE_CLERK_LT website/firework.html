@@ -19,13 +19,32 @@
             display: block;
             background-color: rgba(0, 0, 0, 0.2);
         }
+        .diwali-bg {
+            background-image: radial-gradient(circle at center, #2e0854, #000000 80%);
+        }
     </style>
 </head>
-<body class="bg-black text-white flex items-center justify-center">
+<body class="bg-black text-white flex flex-col items-center justify-center h-screen w-screen diwali-bg">
     <div class="fixed top-4 left-1/2 -translate-x-1/2 p-4 rounded-xl bg-gray-800/50 backdrop-blur-sm shadow-lg text-center">
-        <p class="font-bold text-lg">Click or tap anywhere to launch a firework!</p>
-        <p class="text-sm text-gray-400">Try different patterns and sounds.</p>
+        <p class="font-bold text-lg mb-1">Click or tap anywhere to launch a firework!</p>
+        <p class="text-sm text-gray-400">Choose a pattern below.</p>
     </div>
+
+    <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-10 hidden" id="diwaliMessage">
+        <h1 class="text-6xl font-extrabold text-white animate-pulse">Happy Diwali!</h1>
+    </div>
+    
+    <div class="fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-xl bg-gray-800/50 backdrop-blur-sm shadow-lg flex flex-wrap justify-center space-x-2 space-y-2 sm:space-y-0">
+        <button id="randomBtn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-400">Random</button>
+        <button id="basicBtn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400">Basic</button>
+        <button id="ringBtn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400">Ring</button>
+        <button id="burstBtn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400">Burst</button>
+        <button id="starBtn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400">Star</button>
+        <button id="clusterBtn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400">Cluster</button>
+        <button id="blastBtn" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-400">BLAST!</button>
+        <button id="musicBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-400">Music ON</button>
+    </div>
+
     <canvas id="fireworksCanvas" class="rounded-xl"></canvas>
 
     <script>
@@ -44,6 +63,10 @@
         const fireworks = [];
         const particles = [];
         const trailParticles = [];
+        const fireworkTypes = ['basic', 'ring', 'burst', 'star', 'cluster'];
+        let currentType = 'random';
+        let musicPlaying = false;
+        let autoFireInterval = null;
 
         // Constants for firework behavior
         const GRAVITY = 0.05;
@@ -54,22 +77,100 @@
         const launchSynth = new Tone.Synth({
             oscillator: { type: 'sine' },
             envelope: {
-                attack: 0.01,
-                decay: 0.1,
-                sustain: 0.1,
-                release: 0.2
+                attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2
             }
         }).toDestination();
 
         const explosionNoise = new Tone.NoiseSynth({
             noise: { type: 'pink' },
             envelope: {
-                attack: 0.005,
-                decay: 0.5,
-                sustain: 0,
-                release: 0.1
+                attack: 0.005, decay: 0.5, sustain: 0, release: 0.1
             }
         }).toDestination();
+
+        // Setup a simple ambient music loop
+        const musicSynth = new Tone.Synth().toDestination();
+        const musicLoop = new Tone.Sequence((time, note) => {
+            musicSynth.triggerAttackRelease(note, '8n', time);
+        }, ['C4', 'E4', 'G4', 'C5', 'G4', 'E4', 'C4']).start(0);
+        musicLoop.loop = true;
+        musicLoop.playbackRate = 0.5;
+        Tone.Transport.bpm.value = 80;
+
+        // UI Element References
+        const musicBtn = document.getElementById('musicBtn');
+        const blastBtn = document.getElementById('blastBtn');
+        const diwaliMessage = document.getElementById('diwaliMessage');
+        const typeButtons = {
+            random: document.getElementById('randomBtn'),
+            basic: document.getElementById('basicBtn'),
+            ring: document.getElementById('ringBtn'),
+            burst: document.getElementById('burstBtn'),
+            star: document.getElementById('starBtn'),
+            cluster: document.getElementById('clusterBtn')
+        };
+        
+        // Function to update the active button style
+        function setActiveButton(type) {
+            Object.keys(typeButtons).forEach(key => {
+                const btn = typeButtons[key];
+                if (key === type) {
+                    btn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+                    btn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+                } else {
+                    btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+                    btn.classList.add('bg-gray-600', 'hover:bg-gray-700');
+                }
+            });
+        }
+
+        // Add event listeners for type selection buttons
+        Object.keys(typeButtons).forEach(type => {
+            typeButtons[type].addEventListener('click', () => {
+                currentType = type;
+                setActiveButton(type);
+            });
+        });
+        setActiveButton(currentType); // Set initial active state
+
+        // Add event listener for music button
+        musicBtn.addEventListener('click', () => {
+            if (!musicPlaying) {
+                Tone.start();
+                Tone.Transport.start();
+                musicBtn.textContent = 'Music OFF';
+                musicBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                musicBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+            } else {
+                Tone.Transport.stop();
+                musicBtn.textContent = 'Music ON';
+                musicBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                musicBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+            }
+            musicPlaying = !musicPlaying;
+        });
+
+        // Add event listener for the new Blast button
+        blastBtn.addEventListener('click', () => {
+            diwaliMessage.classList.remove('hidden');
+            setTimeout(() => {
+                diwaliMessage.classList.add('hidden');
+            }, 3000); // Hide message after 3 seconds
+
+            const blastCount = 10;
+            for (let i = 0; i < blastCount; i++) {
+                const targetX = Math.random() * canvas.width;
+                const targetY = Math.random() * canvas.height / 2;
+                const startX = canvas.width / 2;
+                const startY = canvas.height;
+                const typeToLaunch = fireworkTypes[Math.floor(Math.random() * fireworkTypes.length)];
+                
+                setTimeout(() => {
+                    fireworks.push(new Firework(startX, startY, targetX, targetY, typeToLaunch));
+                    launchSynth.triggerAttackRelease('C4', '8n');
+                }, i * 200); // Stagger the launches
+            }
+        });
 
         /**
          * Represents a single particle in a firework explosion.
@@ -194,6 +295,9 @@
                     case 'star':
                         this.createStarParticles();
                         break;
+                    case 'cluster':
+                        this.createClusterParticles();
+                        break;
                     default:
                         this.createBasicParticles();
                         break;
@@ -276,6 +380,20 @@
                     particles.push(new Particle(this.x, this.y, this.hue, innerVelocity));
                 }
             }
+
+            createClusterParticles() {
+                 const clusterCount = 5;
+                 for (let i = 0; i < clusterCount; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 2 + 1;
+                    const velocity = {
+                        x: Math.cos(angle) * speed,
+                        y: Math.sin(angle) * speed
+                    };
+                    const secondaryFirework = new Firework(this.x, this.y, this.x + velocity.x * 50, this.y + velocity.y * 50, 'basic');
+                    fireworks.push(secondaryFirework);
+                 }
+            }
         }
 
         /**
@@ -331,12 +449,13 @@
             if (hue > 360) {
                 hue = 0;
             }
+            
+            let typeToLaunch = currentType;
+            if (currentType === 'random') {
+                 typeToLaunch = fireworkTypes[Math.floor(Math.random() * fireworkTypes.length)];
+            }
 
-            // Randomly select a firework type
-            const fireworkTypes = ['basic', 'ring', 'burst', 'star'];
-            const randomType = fireworkTypes[Math.floor(Math.random() * fireworkTypes.length)];
-
-            fireworks.push(new Firework(startX, startY, mouseX, mouseY, randomType));
+            fireworks.push(new Firework(startX, startY, mouseX, mouseY, typeToLaunch));
             launchSynth.triggerAttackRelease('C4', '8n');
         });
 
