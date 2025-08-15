@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Motu Patlu Runner — Endless 3‑Lane Demo (Offline)</title>
+<style>
+  :root{
+    --bg:#0e111a; --panel:#151a28; --text:#e9edf5; --muted:#9aa3b2;
+    --accent:#5ce1e6; --good:#7ddb29; --bad:#ff6b6b; --warn:#ffd166;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text); background: radial-gradient(1000px 600px at 15% -10%, #12172b, #0e111a);
+    min-height:100vh; display:grid; place-items:start center; padding:18px;
+  }
+  .app{ width:min(100%, 920px); }
+  header, .board{
+    background: linear-gradient(180deg, #182039, var(--panel));
+    border:1px solid #263055; border-radius:12px; box-shadow:0 16px 48px rgba(0,0,0,0.35);
+  }
+  header{ padding:14px; margin-bottom:12px; }
+  h1{ margin:0 0 6px 0; font-size:20px; }
+  .controls{ display:flex; gap:10px 12px; flex-wrap:wrap; align-items:center; margin-top:6px; }
+  .group{
+    display:flex; gap:8px; align-items:center; background:#141a2e; border:1px solid #2a335e;
+    border-radius:10px; padding:8px 10px;
+  }
+  label{ color:var(--muted); font-size:12px; }
+  select, input[type="number"]{
+    background:#0f1326; color:var(--text); border:1px solid #2a335e; border-radius:8px; padding:6px 8px; outline:none;
+  }
+  button{
+    background: linear-gradient(180deg, #2b3568, #28305e); color:var(--text); border:1px solid #3a4586;
+    padding:8px 12px; border-radius:10px; cursor:pointer; transition:transform .04s ease, filter .2s ease;
+  }
+  button:hover{ filter:brightness(1.08); }
+  button:active{ transform:translateY(1px); }
+  button[disabled]{ opacity:.55; cursor:not-allowed; }
+
+  .stat{ display:grid; gap:2px; min-width:92px; text-align:center; }
+  .label{ color:var(--muted); font-size:11px; }
+  .value{ font-weight:800; letter-spacing:.4px; }
+
+  .board{ padding:12px; }
+  canvas{
+    display:block; margin:auto; background:#0b0f1f; border-radius:10px;
+    border:1px solid #263055; box-shadow:0 16px 40px rgba(0,0,0,.4) inset;
+    touch-action: manipulation;
+  }
+
+  .hud{ display:flex; gap:10px 12px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+  .hint{ color:var(--muted); font-size:12px; }
+
+  .toast{
+    position:absolute; left:50%; top:12%; transform:translateX(-50%) translateY(-10px);
+    background: rgba(12,16,30,0.85); border:1px solid #2a335e; color:#e9edf5;
+    padding:10px 14px; border-radius:10px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 12px 28px rgba(0,0,0,0.35);
+    opacity:0; pointer-events:none; transition: opacity .25s ease, transform .25s ease;
+    z-index:5;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .controls-mobile{
+    margin-top:12px; display:flex; justify-content:center; gap:12px; flex-wrap:wrap;
+  }
+  .btn{
+    background:#11172d; color:#dfe6ff; border:1px solid #2a335e; padding:12px 14px;
+    border-radius:12px; min-width:84px; text-align:center; user-select:none;
+    box-shadow:0 6px 16px rgba(0,0,0,.3);
+  }
+  .btn:active{ transform:translateY(1px); }
+  .footer{ color:var(--muted); margin-top:8px; font-size:11px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🚇 Motu Patlu Runner — Endless 3‑Lane</h1>
+    <div class="controls">
+      <div class="group">
+        <label>Character</label>
+        <select id="skin">
+          <option value="motu">Motu (sturdy)</option>
+          <option value="patlu">Patlu (nimble)</option>
+        </select>
+      </div>
+      <div class="group">
+        <label>Difficulty</label>
+        <select id="difficulty">
+          <option value="easy">Easy</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Hard</option>
+        </select>
+      </div>
+      <button id="start">Start</button>
+      <button id="restart">Restart</button>
+
+      <div class="stat"><div class="label">Score</div><div class="value" id="score">0</div></div>
+      <div class="stat"><div class="label">Best</div><div class="value" id="best">0</div></div>
+      <div class="stat"><div class="label">Speed</div><div class="value" id="speed">1.00x</div></div>
+      <div class="stat"><div class="label">Coins</div><div class="value" id="coins">0</div></div>
+    </div>
+  </header>
+
+  <div class="board" style="position:relative">
+    <canvas id="game" width="720" height="480" aria-label="Motu Patlu Runner"></canvas>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="controls-mobile">
+    <div class="btn" id="btnLeft">⟵ Left</div>
+    <div class="btn" id="btnJump">⤒ Jump</div>
+    <div class="btn" id="btnRight">Right ⟶</div>
+  </div>
+
+  <div class="footer">Controls: Arrow keys / A D to switch lanes, W / Up to jump • Avoid obstacles, grab coins • Hindi toasts for drama</div>
+</div>
+
+<script>
+(() => {
+  // ====== Elements
+  const $ = s => document.querySelector(s);
+  const canvas = $('#game');
+  const ctx = canvas.getContext('2d');
+  const startBtn = $('#start'), restartBtn = $('#restart');
+  const scoreEl = $('#score'), bestEl = $('#best'), speedEl = $('#speed'), coinsEl = $('#coins');
+  const toastEl = $('#toast');
+  const skinEl = $('#skin'), diffEl = $('#difficulty');
+  const btnLeft = $('#btnLeft'), btnRight = $('#btnRight'), btnJump = $('#btnJump');
+
+  // ====== Sound (simple beeps)
+  const AudioKit = (() => {
+    let ctx;
+    function ensure(){ if(!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+    function tone(f, ms=90, type='sine', v=0.05){
+      try{
+        ensure(); const o=ctx.createOscillator(), g=ctx.createGain();
+        o.type=type; o.frequency.value=f; g.gain.value=v; o.connect(g).connect(ctx.destination);
+        const t=ctx.currentTime; o.start(t); g.gain.setValueAtTime(v,t);
+        g.gain.exponentialRampToValueAtTime(0.0001,t+ms/1000); o.stop(t+ms/1000+0.02);
+      }catch{}
+    }
+    return {
+      coin: ()=>tone(900,70,'triangle',0.05),
+      step: ()=>tone(420,40,'square',0.02),
+      whoosh:()=>tone(720,60,'sine',0.03),
+      crash:()=>{ tone(180,160,'sawtooth',0.07); setTimeout(()=>tone(90,160,'sawtooth',0.07),110); },
+      near: ()=>tone(300,60,'square',0.03)
+    };
+  })();
+
+  // ====== Toast
+  function toast(text){
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    setTimeout(()=>toastEl.classList.remove('show'), 1200);
+  }
+
+  // ====== Game config
+  const W = canvas.width, H = canvas.height;
+  const lanes = [W*0.28, W*0.50, W*0.72]; // x positions
+  const groundY = H*0.82;
+  const gravity = 2000; // px/s^2
+  const jumpVel = 780;  // px/s
+
+  const skins = {
+    motu: { color:'#ffd166', ring:'#f9c74f', label:'M' },
+    patlu:{ color:'#7ec8ff', ring:'#63b3ed', label:'P' }
+  };
+
+  const difficulties = {
+    easy:   { speed: 360, accel: 0.04, spawnBase: 0.95, spawnVar: 0.35 },
+    normal: { speed: 420, accel: 0.06, spawnBase: 0.85, spawnVar: 0.35 },
+    hard:   { speed: 460, accel: 0.08, spawnBase: 0.75, spawnVar: 0.35 }
+  };
+
+  // ====== State
+  let running = false, alive = true;
+  let lane = 1, targetLane = 1;
+  let px = lanes[lane], py = groundY, vy = 0, onGround = true;
+  let speed = 400, accel = 0.06;
+  let spawnTimer = 0, nextSpawn = 1.0;
+  let score = 0, best = Number(localStorage.getItem('mp_runner_best')||0);
+  let coins = 0;
+  let entities = []; // {type:'barrier'|'train'|'coin', lane:int, y:number, w,h}
+  let lastT = 0;
+  let skin = 'motu';
+
+  bestEl.textContent = best.toString();
+
+  function reset() {
+    const d = difficulties[diffEl.value];
+    speed = d.speed; accel = d.accel;
+    spawnTimer = 0; nextSpawn = rngBetween(d.spawnBase, d.spawnBase + d.spawnVar);
+    entities = [];
+    lane = 1; targetLane = 1; px = lanes[lane]; py = groundY; vy = 0; onGround = true;
+    score = 0; coins = 0; alive = true; running = false;
+    scoreEl.textContent = '0'; coinsEl.textContent = '0'; speedEl.textContent = '1.00x';
+    skin = skinEl.value;
+    toast('Ready? Daur lagao!');
+  }
+
+  // ====== Input
+  const KEYMAP = { ArrowLeft:-1, ArrowRight:1, a:-1, d:1, A:-1, D:1 };
+  window.addEventListener('keydown', (e)=>{
+    if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){
+      jump(); e.preventDefault(); return;
+    }
+    const mv = KEYMAP[e.key];
+    if (mv === -1) laneLeft();
+    if (mv ===  1) laneRight();
+    if (mv!==undefined) e.preventDefault();
+  });
+  btnLeft.addEventListener('click', laneLeft);
+  btnRight.addEventListener('click', laneRight);
+  btnJump.addEventListener('click', jump);
+
+  function laneLeft(){ targetLane = Math.max(0, targetLane-1); AudioKit.whoosh(); }
+  function laneRight(){ targetLane = Math.min(2, targetLane+1); AudioKit.whoosh(); }
+  function jump(){
+    if (!alive) return;
+    if (onGround){ vy = -jumpVel; onGround = false; AudioKit.whoosh(); }
+  }
+
+  startBtn.addEventListener('click', ()=>{ if (!alive){ reset(); } running = true; toast('Shuru! Sambhal ke.'); });
+  restartBtn.addEventListener('click', ()=>{ reset(); running = true; });
+
+  // ====== RNG helper
+  function rngBetween(a,b){ return a + Math.random()*(b-a); }
+
+  // ====== Spawning
+  function scheduleNext(){
+    const d = difficulties[diffEl.value];
+    nextSpawn = rngBetween(d.spawnBase, d.spawnBase + d.spawnVar);
+  }
+
+  function spawnEntity(){
+    const typeRoll = Math.random();
+    const laneIdx = Math.floor(Math.random()*3);
+    if (typeRoll < 0.18){
+      // Train (long, high obstacle)
+      entities.push({ type:'train', lane:laneIdx, y:-220, w:120, h:220 });
+    } else if (typeRoll < 0.58){
+      // Barrier (short)
+      entities.push({ type:'barrier', lane:laneIdx, y:-60, w:70, h:60 });
+    } else {
+      // Coin (collectible)
+      entities.push({ type:'coin', lane:laneIdx, y:-30, w:28, h:28, taken:false });
+    }
+  }
+
+  // ====== Loop
+  function loop(ts){
+    requestAnimationFrame(loop);
+    if (!lastT) lastT = ts;
+    const dt = Math.min(0.033, (ts - lastT)/1000); // cap dt
+    lastT = ts;
+
+    drawBackground();
+
+    if (!alive){ drawPlayer(); drawEntities(); return; }
+    if (!running){ drawPlayer(); drawEntities(); drawHUD(); return; }
+
+    // Speed ramp and score
+    speed += accel; // per frame small
+    const speedMult = speed / difficulties[diffEl.value].speed;
+    speedEl.textContent = speedMult.toFixed(2)+'x';
+    score += Math.floor(10 * speedMult * dt * 10);
+    scoreEl.textContent = score.toString();
+
+    // Smooth lane move
+    const targetX = lanes[targetLane];
+    px += (targetX - px) * Math.min(1, dt*12);
+    lane = nearestLane(px);
+
+    // Jump physics
+    vy += gravity*dt;
+    py += vy*dt;
+    if (py >= groundY){ py = groundY; vy = 0; onGround = true; }
+
+    // Spawn logic
+    spawnTimer += dt;
+    if (spawnTimer >= nextSpawn){
+      spawnTimer = 0; scheduleNext(); spawnEntity();
+    }
+
+    // Move entities
+    for (const e of entities){
+      e.y += speed * dt;
+    }
+
+    // Collisions and cleanup
+    let nearMiss = false;
+    entities = entities.filter(e => {
+      // Remove off-screen
+      if (e.y > H + 240) return false;
+
+      if (e.type === 'coin'){
+        // Collision with coin
+        const cx = lanes[e.lane], cy = e.y + 14;
+        const dx = Math.abs(px - cx), dy = Math.abs(py - cy);
+        const hit = dx < 30 && dy < 34;
+        if (hit && !e.taken){
+          e.taken = true; coins++; coinsEl.textContent = coins.toString(); AudioKit.coin(); toast('Sikka mila!');
+          return false;
+        }
+        return true;
+      } else {
+        // Obstacle coll
+        const cx = lanes[e.lane];
+        const ex = cx - e.w/2, ew = e.w;
+        const ey = e.y, eh = e.h;
+        const playerW = 46, playerH = 54;
+        const pxBox = px - playerW/2, pyBox = py - playerH;
+        const overlap = rectOverlap(pxBox, pyBox, playerW, playerH, ex, ey, ew, eh);
+        if (overlap){
+          // If mid-air high enough, allow jump over barrier (not trains)
+          if (e.type === 'barrier' && !onGround && (groundY - py) > 24){
+            // leaped successfully — small score bonus
+            score += 20;
+            return true;
+          }
+          // Crash
+          alive = false; running = false;
+          AudioKit.crash(); toast('Dhaakad! Takra gaye.');
+          if (score > best){ best = score; localStorage.setItem('mp_runner_best', best); }
+          bestEl.textContent = best.toString();
+          // screen flash
+          flashScreen();
+          return true;
+        } else {
+          // Near miss detection
+          if (e.lane === lane && Math.abs((e.y+eh) - py) < 26) nearMiss = true;
+          return true;
+        }
+      }
+    });
+
+    if (nearMiss){ AudioKit.near(); toast('Bach gaye!'); }
+
+    // Draw
+    drawEntities();
+    drawPlayer();
+    drawHUD();
+  }
+
+  function nearestLane(x){
+    let idx = 0, best = Infinity;
+    for (let i=0;i<3;i++){
+      const d = Math.abs(x - lanes[i]); if (d < best){ best = d; idx = i; }
+    }
+    return idx;
+  }
+
+  function rectOverlap(ax,ay,aw,ah,bx,by,bw,bh){
+    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+  }
+
+  // ====== Drawing
+  function drawBackground(){
+    // Road gradient
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0d1326'); g.addColorStop(1,'#0a0f20');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+    // Perspective rails
+    ctx.strokeStyle = '#1b274a'; ctx.lineWidth = 2;
+    const center = W/2;
+    for (let i=0;i<6;i++){
+      const y = (i/6)*H;
+      ctx.beginPath(); ctx.moveTo(W*0.18, y); ctx.lineTo(W*0.82, y); ctx.stroke();
+    }
+    // Lane markers
+    ctx.strokeStyle = 'rgba(92,225,230,0.25)'; ctx.setLineDash([10,12]); ctx.lineWidth = 3;
+    for (let i=0;i<2;i++){
+      const x = (lanes[i]+lanes[i+1])/2;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // Horizon glow
+    const rad = ctx.createRadialGradient(W*0.5, H*0.10, 10, W*0.5, H*0.10, 260);
+    rad.addColorStop(0,'rgba(92,225,230,0.18)');
+    rad.addColorStop(1,'rgba(92,225,230,0.0)');
+    ctx.fillStyle = rad; ctx.beginPath(); ctx.arc(W*0.5,H*0.10,260,0,Math.PI*2); ctx.fill();
+  }
+
+  function drawEntities(){
+    for (const e of entities){
+      const x = lanes[e.lane];
+      if (e.type === 'coin'){
+        // coin
+        ctx.save();
+        ctx.translate(x, e.y + 14);
+        const spin = (performance.now()/5)%360 * Math.PI/180;
+        const sx = 1 + Math.sin(spin)*0.25;
+        ctx.scale(sx,1);
+        ctx.fillStyle = '#ffd166';
+        ctx.strokeStyle = '#f2a93b'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0,0,12,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      } else if (e.type === 'barrier'){
+        ctx.fillStyle = '#ff6b6b';
+        ctx.strokeStyle = '#5c1f31'; ctx.lineWidth = 3;
+        ctx.fillRect(x - e.w/2, e.y, e.w, e.h);
+        ctx.strokeRect(x - e.w/2, e.y, e.w, e.h);
+      } else if (e.type === 'train'){
+        const w = e.w, h = e.h;
+        ctx.fillStyle = '#324a7a'; ctx.strokeStyle = '#22355c'; ctx.lineWidth = 4;
+        ctx.fillRect(x - w/2, e.y, w, h);
+        ctx.strokeRect(x - w/2, e.y, w, h);
+        // windows
+        ctx.fillStyle = '#9bb6ff';
+        for (let i=0;i<3;i++){
+          ctx.fillRect(x - w/2 + 10, e.y + 12 + i*60, w - 20, 28);
+        }
+        // lights
+        ctx.fillStyle = '#ffd166'; ctx.fillRect(x - 8, e.y + h - 12, 16, 6);
+      }
+    }
+  }
+
+  function drawPlayer(){
+    const s = skins[skin];
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.ellipse(px, groundY+6, 22, 10, 0, 0, Math.PI*2); ctx.fill();
+    // ring
+    ctx.fillStyle = s.ring;
+    ctx.beginPath(); ctx.arc(px, py-24, 26, 0, Math.PI*2); ctx.fill();
+    // body
+    ctx.fillStyle = s.color;
+    ctx.beginPath(); ctx.arc(px, py-24, 22, 0, Math.PI*2); ctx.fill();
+    // label
+    ctx.fillStyle = '#0b0f1f'; ctx.font = 'bold 16px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(s.label, px, py-24);
+  }
+
+  function drawHUD(){
+    // Nothing extra; UI in header
+  }
+
+  // Screen flash on crash
+  function flashScreen(){
+    const overlay = document.createElement('div');
+    overlay.style.position='absolute'; overlay.style.left=0; overlay.style.top=0;
+    overlay.style.right=0; overlay.style.bottom=0; overlay.style.borderRadius='10px';
+    overlay.style.background='rgba(255,107,107,0.25)';
+    overlay.style.pointerEvents='none';
+    overlay.style.transition='opacity .35s ease';
+    canvas.parentElement.appendChild(overlay);
+    requestAnimationFrame(()=>{ overlay.style.opacity='0'; });
+    setTimeout(()=>overlay.remove(), 380);
+  }
+
+  // ====== Start
+  reset();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

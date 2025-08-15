@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>VOIDRUN — Impossible One‑HP Bullet Hell (Offline)</title>
+<style>
+  :root{
+    --bg:#0b0f1f; --panel:#141a2e; --text:#e9edf5; --muted:#9aa3b2;
+    --good:#7ddb29; --bad:#ff6b6b; --warn:#ffd166; --neon:#5ce1e6; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--text);
+    background: radial-gradient(1200px 700px at 15% -10%, #12172b, var(--bg));
+    min-height:100vh; display:grid; place-items:start center; padding:18px;
+  }
+  .app{ width:min(100%, 980px); }
+  header, .board{
+    background: linear-gradient(180deg, #182039, var(--panel));
+    border:1px solid #263055; border-radius:12px; box-shadow:0 16px 48px rgba(0,0,0,0.35);
+  }
+  header{ padding:14px; margin-bottom:12px; }
+  h1{ margin:0 0 6px 0; font-size:20px; letter-spacing:.3px; }
+  .subtitle{ color:var(--muted); font-size:12px; }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:10px 12px; align-items:center; margin-top:8px; }
+  .group{ display:flex; gap:8px; align-items:center; background:#11172d; border:1px solid #2a335e; border-radius:10px; padding:8px 10px; }
+  .stat{ display:grid; gap:2px; text-align:center; min-width:92px; }
+  .label{ color:var(--muted); font-size:11px; }
+  .value{ font-weight:800; letter-spacing:.5px; }
+  button{
+    background: linear-gradient(180deg, #2b3568, #28305e); color:var(--text); border:1px solid #3a4586;
+    padding:8px 12px; border-radius:10px; cursor:pointer; transition:transform .04s ease, filter .2s ease;
+  }
+  button:hover{ filter:brightness(1.08); }
+  button:active{ transform:translateY(1px); }
+
+  .board{ padding:12px; position:relative; }
+  canvas{
+    display:block; margin:auto; background:#0a0f1f; border-radius:10px;
+    border:1px solid #263055; box-shadow:0 16px 40px rgba(0,0,0,.45) inset;
+    image-rendering: pixelated; touch-action: manipulation;
+  }
+
+  .hud{
+    position:absolute; left:12px; top:12px; right:12px; display:flex; gap:10px; align-items:center; justify-content:space-between; pointer-events:none;
+  }
+  .bar{
+    height:8px; width:180px; border-radius:999px; border:1px solid #2a335e; background:#0f1326; overflow:hidden;
+    box-shadow:0 0 0 1px rgba(0,0,0,.2) inset;
+  }
+  .bar .fill{ height:100%; width:0%; background: linear-gradient(90deg, var(--neon), #00ffa3); box-shadow:0 0 12px rgba(92,225,230,0.5); }
+
+  .toast{
+    position:absolute; left:50%; top:12%; transform:translateX(-50%) translateY(-10px);
+    background: rgba(12,16,30,0.85); border:1px solid #2a335e; color:#e9edf5;
+    padding:10px 14px; border-radius:10px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 12px 28px rgba(0,0,0,0.35);
+    opacity:0; pointer-events:none; transition: opacity .25s ease, transform .25s ease; z-index:5;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .help{ color:var(--muted); font-size:12px; text-align:center; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>VOIDRUN — Impossible One‑HP Bullet Hell</h1>
+    <div class="subtitle">Survive as long as you can. Every run is different. One hit and it’s over.</div>
+    <div class="controls">
+      <button id="start">Start</button>
+      <button id="retry">Retry</button>
+      <div class="stat"><div class="label">Score</div><div class="value" id="score">0</div></div>
+      <div class="stat"><div class="label">Best</div><div class="value" id="best">0</div></div>
+      <div class="stat"><div class="label">Time</div><div class="value" id="time">0.0s</div></div>
+      <div class="group" style="pointer-events:auto">
+        <div class="label">Focus</div>
+        <div class="bar" style="width:160px"><div class="fill" id="focusBar"></div></div>
+      </div>
+      <div class="group" style="pointer-events:auto">
+        <div class="label">Dash</div>
+        <div class="bar" style="width:160px"><div class="fill" id="dashBar"></div></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="board">
+    <canvas id="game" width="900" height="540" aria-label="VOIDRUN game canvas"></canvas>
+    <div class="hud" aria-hidden="true"></div>
+    <div class="toast" id="toast"></div>
+  </div>
+  <div class="help">Controls: WASD / Arrows to move • Shift to dash (i‑frames) • Space to Focus (slow‑mo) • R to retry</div>
+</div>
+
+<script>
+(() => {
+  // ====== Elements
+  const $ = s => document.querySelector(s);
+  const canvas = $('#game');
+  const ctx = canvas.getContext('2d');
+  const startBtn = $('#start'), retryBtn = $('#retry');
+  const scoreEl = $('#score'), bestEl = $('#best'), timeEl = $('#time');
+  const focusBar = $('#focusBar'), dashBar = $('#dashBar');
+  const toastEl = $('#toast');
+
+  // ====== Audio (tiny WebAudio beeps)
+  const AudioKit = (() => {
+    let ctxA;
+    function ensure(){ if(!ctxA) ctxA = new (window.AudioContext || window.webkitAudioContext)(); }
+    function tone(f, ms=100, type='sine', v=0.05){
+      try{
+        ensure(); const o=ctxA.createOscillator(), g=ctxA.createGain();
+        o.type=type; o.frequency.value=f; g.gain.value=v; o.connect(g).connect(ctxA.destination);
+        const t=ctxA.currentTime; o.start(t); g.gain.setValueAtTime(v,t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + ms/1000); o.stop(t + ms/1000 + 0.02);
+      }catch{}
+    }
+    return {
+      step: () => tone(520, 30, 'square', 0.02),
+      dash: () => tone(880, 90, 'triangle', 0.05),
+      focus:() => tone(640, 60, 'sine', 0.03),
+      warn: () => tone(360, 90, 'square', 0.04),
+      hit:  () => { tone(200, 180, 'sawtooth', 0.07); setTimeout(()=>tone(110, 180, 'sawtooth', 0.07), 120); },
+      win:  () => { [660,880,990].forEach((f,i)=>setTimeout(()=>tone(f,90,'triangle',0.05), i*100)); }
+    };
+  })();
+
+  // ====== Utils
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const dist2 = (x1,y1,x2,y2)=>{ const dx=x1-x2, dy=y1-y2; return dx*dx+dy*dy; };
+  const rnd = (a=0,b=1)=>a + Math.random()*(b-a);
+  const pick = arr => arr[(Math.random()*arr.length)|0];
+  const TAU = Math.PI*2;
+
+  function toast(text){
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    setTimeout(()=>toastEl.classList.remove('show'), 1200);
+  }
+
+  // ====== State
+  const W = canvas.width, H = canvas.height;
+  let running=false, alive=true, best=Number(localStorage.getItem('voidrun_best')||0);
+  let t=0, score=0, lastTs=0, timeScale=1;
+
+  // Player
+  const P = {
+    x: W*0.5, y: H*0.7, r: 7,
+    vx:0, vy:0, speed: 270,
+    dashCD: 0, dashTime: 0, dashDur: 0.2, dashCDMax: 1.25, dashSpeed: 760,
+    focus: 1.0, focusDrain: 0.45, focusRegen: 0.25,
+    invuln: 0
+  };
+
+  // Input
+  const keys = {};
+  window.addEventListener('keydown', e=>{
+    keys[e.key] = true;
+    if (e.key === ' '){ AudioKit.focus(); }
+    if (e.key.toLowerCase()==='r'){ reset(true); }
+    e.key.startsWith('Arrow') && e.preventDefault();
+  }, {passive:false});
+  window.addEventListener('keyup', e=>{ keys[e.key] = false; });
+
+  startBtn.addEventListener('click', ()=>{ if(!running){ running=true; alive=true; toast('Shuru! Bas ek jaan.'); } });
+  retryBtn.addEventListener('click', ()=> reset(true));
+
+  // Entities
+  const bullets = [];   // {x,y,vx,vy,r,life,color,type,hitboxScale,seek}
+  const lasers = [];    // {x1,y1,x2,y2,phase,t,tele,fire,width}
+  const spinners = [];  // rotating turrets {x,y,ang,speed,dur,rate,t}
+  const mines = [];     // drifting bombs {x,y,vx,vy,t,trigger}
+
+  // Spawning schedule
+  let spawnTimer = 0, spawnGap = 1.2;
+
+  function reset(startRun=false){
+    running = !!startRun; alive = true;
+    P.x = W*0.5; P.y = H*0.7; P.vx=P.vy=0;
+    P.dashCD = 0; P.dashTime = 0; P.invuln = 0;
+    P.focus = 1.0; timeScale = 1;
+    t=0; score=0; lastTs=0;
+    bullets.length=0; lasers.length=0; spinners.length=0; mines.length=0;
+    spawnTimer = 0; spawnGap = 1.2;
+    scoreEl.textContent = '0';
+    timeEl.textContent = '0.0s';
+    updateBars();
+    toast('Tayyār? Bacha ke chalna.');
+  }
+
+  bestEl.textContent = best.toString();
+  reset(false);
+
+  // ====== Spawners
+  function spawnEdgeBarrage(){
+    const side = pick(['top','bottom','left','right']);
+    const n = 10 + (t*0.4|0);
+    const speed = rnd(120, 220) + t*2.5;
+    for (let i=0;i<n;i++){
+      let x=0,y=0, vx=0, vy=0;
+      if (side==='top'){ x=rnd(0,W); y=-10; vx=0; vy=speed; }
+      if (side==='bottom'){ x=rnd(0,W); y=H+10; vx=0; vy=-speed; }
+      if (side==='left'){ x=-10; y=rnd(0,H); vx=speed; vy=0; }
+      if (side==='right'){ x=W+10; y=rnd(0,H); vx=-speed; vy=0; }
+      bullets.push({x,y,vx,vy,r:4,life:8,color:'#9bb6ff',type:'normal',hitboxScale:1});
+    }
+  }
+
+  function spawnRing(cx,cy, count=16, speed=160){
+    for (let i=0;i<count;i++){
+      const a = i*(TAU/count);
+      const vx = Math.cos(a)*speed, vy=Math.sin(a)*speed;
+      bullets.push({x:cx,y:cy,vx,vy,r:3.5,life:6,color:'#ffd166',type:'normal',hitboxScale:1});
+    }
+  }
+
+  function spawnSpinner(){
+    spinners.push({
+      x: rnd(W*0.2, W*0.8), y: rnd(H*0.2, H*0.6),
+      ang: rnd(0,TAU), speed: rnd(1.8,3.2), dur: rnd(2.8,4.2), rate: rnd(0.05,0.09), t:0
+    });
+  }
+
+  function spawnHoming(count=5){
+    for (let i=0;i<count;i++){
+      const edge = pick(['top','bottom','left','right']);
+      let x,y;
+      if (edge==='top'){ x=rnd(0,W); y=-10; }
+      if (edge==='bottom'){ x=rnd(0,W); y=H+10; }
+      if (edge==='left'){ x=-10; y=rnd(0,H); }
+      if (edge==='right'){ x=W+10; y=rnd(0,H); }
+      const a = Math.atan2(P.y - y, P.x - x);
+      const sp = rnd(80, 150) + t*1.5;
+      bullets.push({x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, r:5, life:10, color:'#ff6b6b', type:'homing', hitboxScale:0.9, seek: rnd(30,60)});
+    }
+  }
+
+  function spawnLaser(){
+    // Telegraph then fire across random line near player
+    const pad = 40;
+    const x1 = rnd(pad,W-pad), y1 = rnd(pad,H-pad);
+    const ang = rnd(0, TAU);
+    const len = Math.max(W,H)*1.5;
+    const x2 = x1 + Math.cos(ang)*len;
+    const y2 = y1 + Math.sin(ang)*len;
+    lasers.push({ x1, y1, x2, y2, phase:'tele', t:0, tele:0.7, fire:0.4, width: 12 });
+  }
+
+  function spawnMine(){
+    const x = rnd(60, W-60), y = -20;
+    mines.push({ x, y, vx: rnd(-20,20), vy: rnd(60,100), t: 0, trigger: rnd(1.2, 2.0) });
+  }
+
+  // ====== Update
+  function update(dt){
+    if (!running || !alive) return;
+
+    // Escalation
+    t += dt; score += Math.floor(60*dt);
+    scoreEl.textContent = String(score);
+    timeEl.textContent = t.toFixed(1) + 's';
+
+    // Input + movement
+    const left = keys['ArrowLeft']||keys['a']||keys['A'];
+    const right = keys['ArrowRight']||keys['d']||keys['D'];
+    const up = keys['ArrowUp']||keys['w']||keys['W'];
+    const down = keys['ArrowDown']||keys['s']||keys['S'];
+    const focusKey = keys[' '] === true;
+    const dashKey = keys['Shift'] === true;
+
+    // Focus (slow‑mo)
+    let slow = 1;
+    if (focusKey && P.focus > 0){
+      P.focus = Math.max(0, P.focus - P.focusDrain*dt);
+      timeScale = 0.62;
+      slow = 0.75;
+    } else {
+      P.focus = Math.min(1, P.focus + P.focusRegen*dt);
+      timeScale = 1.0;
+    }
+
+    // Dash
+    P.dashCD = Math.max(0, P.dashCD - dt);
+    P.invuln = Math.max(0, P.invuln - dt);
+    if (dashKey && P.dashCD<=0 && P.dashTime<=0){
+      P.dashTime = P.dashDur;
+      P.dashCD = P.dashCDMax;
+      P.invuln = Math.max(P.invuln, P.dashDur);
+      AudioKit.dash();
+    }
+    if (P.dashTime>0){
+      P.dashTime -= dt;
+    }
+
+    const acc = 1400;
+    const maxV = (P.dashTime>0) ? P.dashSpeed : P.speed * slow;
+    const targetVx = (left?-1:0) + (right?1:0);
+    const targetVy = (up?-1:0) + (down?1:0);
+    const mag = Math.hypot(targetVx,targetVy)||1;
+    const tvx = (targetVx/mag) * maxV;
+    const tvy = (targetVy/mag) * maxV;
+
+    // Accelerate towards target
+    P.vx += clamp(tvx - P.vx, -acc*dt, acc*dt);
+    P.vy += clamp(tvy - P.vy, -acc*dt, acc*dt);
+
+    // Friction if no input
+    if (!left && !right) P.vx *= 0.90;
+    if (!up && !down) P.vy *= 0.90;
+
+    P.x += P.vx * dt;
+    P.y += P.vy * dt;
+    P.x = clamp(P.x, 12, W-12);
+    P.y = clamp(P.y, 12, H-12);
+
+    // Spawn logic (faster over time)
+    spawnTimer -= dt * timeScale;
+    if (spawnTimer <= 0){
+      const patterns = [
+        ()=>spawnEdgeBarrage(),
+        ()=>spawnSpinner(),
+        ()=>spawnHoming(3 + (t*0.1|0)),
+        ()=>spawnLaser(),
+        ()=>spawnMine()
+      ];
+      // Weighted randomness, more lasers/mines later
+      const roll = Math.random();
+      if (roll < 0.28) spawnEdgeBarrage();
+      else if (roll < 0.50) spawnSpinner();
+      else if (roll < 0.72) spawnHoming(3 + (t*0.12|0));
+      else if (roll < 0.88) spawnLaser();
+      else spawnMine();
+
+      const baseGap = clamp(1.1 - t*0.02, 0.28, 1.1);
+      spawnGap = baseGap;
+      spawnTimer = spawnGap;
+    }
+
+    // Spinners shoot
+    for (let i=spinners.length-1;i>=0;i--){
+      const s = spinners[i];
+      s.t += dt * timeScale;
+      s.ang += s.speed * dt * timeScale;
+      if (s.t >= s.rate){
+        s.t = 0;
+        const speed = 180 + t*2.2;
+        bullets.push({
+          x:s.x, y:s.y,
+          vx: Math.cos(s.ang)*speed, vy: Math.sin(s.ang)*speed,
+          r:3.5, life:4.5, color:'#a78bfa', type:'normal', hitboxScale:1
+        });
+      }
+      s.dur -= dt * timeScale;
+      if (s.dur <= 0) spinners.splice(i,1);
+    }
+
+    // Mines drift and detonate
+    for (let i=mines.length-1;i>=0;i--){
+      const m = mines[i];
+      m.t += dt * timeScale;
+      m.x += m.vx * dt * timeScale;
+      m.y += m.vy * dt * timeScale;
+      // gentle sway
+      m.vx += Math.sin(m.t*2) * 2 * dt;
+      if (m.t >= m.trigger || m.y > H-40){
+        spawnRing(m.x, m.y, 14 + (t*0.15|0), 140 + t*2.0);
+        mines.splice(i,1);
+      }
+    }
+
+    // Lasers phases
+    for (let i=lasers.length-1;i>=0;i--){
+      const L = lasers[i];
+      L.t += dt * timeScale;
+      if (L.phase==='tele' && L.t >= L.tele){
+        L.phase='fire'; L.t = 0;
+      } else if (L.phase==='fire' && L.t >= L.fire){
+        lasers.splice(i,1);
+      }
+    }
+
+    // Bullets update
+    let near = false;
+    for (let i=bullets.length-1;i>=0;i--){
+      const b = bullets[i];
+      // Homing seek
+      if (b.type==='homing' && b.seek>0){
+        const ax = P.x - b.x, ay = P.y - b.y;
+        const d = Math.hypot(ax, ay) || 1;
+        const steer = clamp(180 * dt * timeScale, 0, 80);
+        const nx = ax/d, ny = ay/d;
+        b.vx += nx * steer;
+        b.vy += ny * steer;
+        // limit speed
+        const sp = Math.hypot(b.vx,b.vy) || 1;
+        const maxSp = 220 + t*2.0;
+        if (sp > maxSp){ b.vx *= maxSp/sp; b.vy *= maxSp/sp; }
+        b.seek -= 60*dt*timeScale;
+      }
+
+      b.x += b.vx * dt * timeScale;
+      b.y += b.vy * dt * timeScale;
+      b.life -= dt * timeScale;
+
+      // Cull
+      if (b.life<=0 || b.x<-40 || b.x>W+40 || b.y<-40 || b.y>H+40){
+        bullets.splice(i,1); continue;
+      }
+
+      // Near miss
+      if (!near && dist2(b.x,b.y,P.x,P.y) < (40*40)) near = true;
+
+      // Collision
+      if (P.invuln<=0){
+        const rr = (P.r*0.9 + b.r*b.hitboxScale);
+        if (dist2(b.x,b.y,P.x,P.y) < rr*rr){
+          kill();
+          return;
+        }
+      }
+    }
+
+    // Laser collision
+    if (P.invuln<=0){
+      for (const L of lasers){
+        if (L.phase!=='fire') continue;
+        // distance from point to line segment
+        const d = pointLineDist(P.x,P.y,L.x1,L.y1,L.x2,L.y2);
+        if (d < L.width*0.5){
+          kill();
+          return;
+        }
+      }
+    }
+
+    if (near && Math.random()<0.05){ AudioKit.warn(); toast('Bach gaye!'); }
+
+    updateBars();
+  }
+
+  function updateBars(){
+    focusBar.style.width = (P.focus*100).toFixed(0)+'%';
+    const dashFrac = 1 - (P.dashCD / P.dashCDMax);
+    dashBar.style.width = clamp(dashFrac,0,1)*100 + '%';
+  }
+
+  function pointLineDist(px,py,x1,y1,x2,y2){
+    const A=px-x1, B=py-y1, C=x2-x1, D=y2-y1;
+    const dot = A*C + B*D;
+    const len = C*C + D*D;
+    let t = (len!==0) ? (dot/len) : -1;
+    t = clamp(t, 0, 1);
+    const xx = x1 + C*t, yy = y1 + D*t;
+    return Math.hypot(px-xx, py-yy);
+  }
+
+  function kill(){
+    alive=false; running=false;
+    AudioKit.hit();
+    toast('Ho gaya khatam. R dabāo phir se.');
+    if (score>best){ best=score; localStorage.setItem('voidrun_best', best); }
+    bestEl.textContent = best.toString();
+  }
+
+  // ====== Draw
+  function draw(){
+    // Background grid glow
+    ctx.clearRect(0,0,W,H);
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'#0b1023'); grad.addColorStop(1,'#0a0f1f');
+    ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+    // Subtle grid
+    ctx.strokeStyle = '#121833'; ctx.lineWidth = 1;
+    for (let y=0;y<H;y+=40){ ctx.beginPath(); ctx.moveTo(0,y+0.5); ctx.lineTo(W,y+0.5); ctx.stroke(); }
+    for (let x=0;x<W;x+=40){ ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,H); ctx.stroke(); }
+
+    // Lasers
+    for (const L of lasers){
+      if (L.phase==='tele'){
+        ctx.strokeStyle = 'rgba(255,214,102,0.35)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8,8]);
+        ctx.beginPath(); ctx.moveTo(L.x1,L.y1); ctx.lineTo(L.x2,L.y2); ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        const w = L.width;
+        ctx.strokeStyle = 'rgba(255,107,107,0.9)';
+        ctx.lineWidth = w;
+        ctx.shadowColor = 'rgba(255,107,107,0.6)';
+        ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.moveTo(L.x1,L.y1); ctx.lineTo(L.x2,L.y2); ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Mines
+    for (const m of mines){
+      ctx.fillStyle = '#ffd166';
+      ctx.strokeStyle = '#f2a93b';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(m.x, m.y, 8, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    }
+
+    // Bullets
+    for (const b of bullets){
+      ctx.fillStyle = b.color;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Player
+    const pulse = alive ? (0.85 + 0.15*Math.sin(performance.now()/150)) : 1;
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.ellipse(P.x, P.y+8, 14, 6, 0, 0, TAU); ctx.fill();
+    // ring (invuln glow)
+    const inv = clamp(P.invuln/0.2,0,1);
+    ctx.strokeStyle = inv>0 ? `rgba(92,225,230,${0.4+0.4*inv})` : 'rgba(92,225,230,0.25)';
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(P.x, P.y, 11 + 4*inv, 0, TAU); ctx.stroke();
+
+    // body
+    ctx.fillStyle = '#5ce1e6';
+    ctx.beginPath(); ctx.arc(P.x, P.y, P.r*pulse, 0, TAU); ctx.fill();
+
+    // Foreground vignette
+    const r = ctx.createRadialGradient(W/2,H*0.5, Math.min(W,H)*0.2, W/2,H*0.6, Math.max(W,H)*0.75);
+    r.addColorStop(0,'rgba(0,0,0,0)');
+    r.addColorStop(1,'rgba(0,0,0,0.25)');
+    ctx.fillStyle = r; ctx.fillRect(0,0,W,H);
+
+    // On-screen messages
+    if (!running){
+      ctx.fillStyle = 'rgba(12,16,30,0.7)';
+      ctx.fillRect(W/2-220, H/2-70, 440, 140);
+      ctx.strokeStyle = '#2a335e'; ctx.lineWidth = 2; ctx.strokeRect(W/2-220, H/2-70, 440, 140);
+      ctx.fillStyle = '#e9edf5'; ctx.font = 'bold 22px system-ui'; ctx.textAlign='center';
+      ctx.fillText(alive ? 'Press Start to begin' : 'Game Over — Press R or Retry', W/2, H/2-10);
+      ctx.fillStyle = '#9aa3b2'; ctx.font = '14px system-ui';
+      ctx.fillText('Move: WASD/Arrows • Dash: Shift • Focus: Space (slow‑mo)', W/2, H/2+20);
+    }
+  }
+
+  // ====== Loop
+  function loop(ts){
+    if (!lastTs) lastTs = ts;
+    const rawDt = Math.min(0.033, (ts - lastTs)/1000);
+    lastTs = ts;
+    const dt = rawDt * timeScale;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-horror">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Vaibhav’s Prep Lair — Horror UI</title>
+<style>
+/* =============== THEME TOKENS =============== */
+:root {
+  --bg: #0b0b0d;
+  --panel: #131317;
+  --text: #e6e6ea;
+  --muted: #9a9aa1;
+  --accent: #d7263d; /* Horror crimson */
+  --accent-2: #7f1d1d;
+  --glow: 0 0 12px rgba(215, 38, 61, 0.45);
+  --ok: #06d6a0;
+  --warn: #ffd166;
+  --bad: #ef476f;
+  --outline: rgba(255,255,255,0.08);
+}
+
+/* Desi theme */
+.theme-desi {
+  --bg: #0f0d0b;
+  --panel: #17130d;
+  --text: #f2e9de;
+  --muted: #c9bba5;
+  --accent: #d97706; /* marigold */
+  --accent-2: #92400e;
+  --glow: 0 0 12px rgba(217, 119, 6, 0.4);
+}
+
+/* Neon theme */
+.theme-neon {
+  --bg: #07090f;
+  --panel: #0c111b;
+  --text: #e6f9ff;
+  --muted: #92a8bd;
+  --accent: #06d6a0; /* neon mint */
+  --accent-2: #1e3a5f;
+  --glow: 0 0 14px rgba(6, 214, 160, 0.45);
+}
+
+/* Horror (default) */
+.theme-horror {
+  --bg: #0b0b0d;
+  --panel: #131317;
+  --text: #e6e6ea;
+  --muted: #9a9aa1;
+  --accent: #d7263d;
+  --accent-2: #7f1d1d;
+  --glow: 0 0 12px rgba(215, 38, 61, 0.45);
+}
+
+/* =============== GLOBAL =============== */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+  background: radial-gradient(1200px 700px at 20% -10%, rgba(215,38,61,0.08), transparent 60%),
+              radial-gradient(900px 600px at 120% 20%, rgba(215,38,61,0.06), transparent 60%),
+              var(--bg);
+  color: var(--text);
+}
+
+/* Topbar and nav */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; background: linear-gradient(to bottom, rgba(0,0,0,0.35), transparent);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: sticky; top: 0; z-index: 20;
+  backdrop-filter: blur(6px);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand .logo { color: var(--accent); filter: drop-shadow(var(--glow)); }
+.brand h1 { font-size: 18px; letter-spacing: 1px; margin: 0; }
+.controls { display: flex; align-items: center; gap: 12px; }
+.control { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+select, input, textarea {
+  background: #0f0f12; color: var(--text); border: 1px solid var(--outline);
+  border-radius: 8px; padding: 10px 12px;
+}
+select:hover, input:hover, textarea:hover { border-color: rgba(255,255,255,0.16); }
+
+.ghost-btn, .primary, .secondary {
+  border-radius: 10px; padding: 10px 14px; border: 1px solid transparent; cursor: pointer;
+  background: #121218; color: var(--text);
+}
+.ghost-btn { border-color: rgba(255,255,255,0.12); }
+.ghost-btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: var(--glow); }
+.primary {
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  box-shadow: var(--glow); border: none;
+}
+.secondary { border: 1px solid rgba(255,255,255,0.14); }
+
+.navbar {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.navbar button {
+  background: #101015; border: 1px solid var(--outline); color: var(--text);
+  padding: 8px 12px; border-radius: 10px; cursor: pointer;
+}
+.navbar button.active { border-color: var(--accent); box-shadow: var(--glow); }
+
+/* Layout panels */
+.container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 980px) {
+  .grid-2 { grid-template-columns: 1.2fr 0.8fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+}
+.panel {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 35%), var(--panel);
+  padding: 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.06);
+}
+.panel h2 { margin: 0 0 12px; letter-spacing: 0.5px; }
+
+/* Focus Crypt */
+.focus-row { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 780px) {
+  .focus-row { grid-template-columns: 0.9fr 1.1fr; }
+}
+.timer { display: grid; gap: 10px; }
+.timer-face {
+  height: 160px; border-radius: 14px; display: grid; place-items: center;
+  background:
+    radial-gradient(250px 60px at 50% 0%, rgba(215,38,61,0.2), transparent 60%),
+    #0e0e12;
+  border: 1px solid rgba(255,255,255,0.06);
+  position: relative; overflow: hidden;
+}
+.timer-face::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(215,38,61,0.10), transparent 30%);
+  mix-blend-mode: screen; pointer-events: none;
+}
+#timeDisplay { font-size: 46px; letter-spacing: 1px; text-shadow: var(--glow); }
+.timer-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.stamina { display: grid; gap: 8px; }
+.stamina-head { display: flex; align-items: baseline; gap: 10px; }
+.stamina-bar {
+  height: 20px; background: #0f0f12; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden; position: relative;
+}
+#staminaFill {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: var(--glow);
+  transition: width 0.3s ease;
+}
+.stamina-meta { display: flex; justify-content: space-between; align-items: center; color: var(--muted); }
+
+.notes { display: grid; gap: 8px; }
+textarea#studyNotes { width: 100%; resize: vertical; border-radius: 12px; }
+
+/* Flashcards */
+.card-stage { display: grid; place-items: center; height: 260px; margin: 8px 0; }
+.flip-card { width: 100%; max-width: 520px; height: 240px; perspective: 1000px; outline: none; }
+.flip-card-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.6s; }
+.flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+.flip-card-front, .flip-card-back {
+  position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+  border-radius: 14px; border: 1px solid rgba(255,255,255,0.08);
+  padding: 16px; display: grid; align-content: center; justify-items: center; text-align: center;
+}
+.flip-card-front {
+  background:
+    repeating-linear-gradient(0deg, rgba(215,38,61,0.08), rgba(215,38,61,0.08) 2px, transparent 2px, transparent 22px),
+    #0f0f12;
+  box-shadow: var(--glow);
+}
+.flip-card-back {
+  transform: rotateY(180deg);
+  background:
+    radial-gradient(300px 60px at 50% 100%, rgba(215,38,61,0.15), transparent 60%),
+    #0f0f12;
+  box-shadow: var(--glow);
+}
+.card-actions { display: flex; gap: 10px; justify-content: center; }
+
+/* Deck Editor */
+.deck-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 1000px) { .deck-grid { grid-template-columns: 0.8fr 1.2fr; } }
+.list { border: 1px solid var(--outline); border-radius: 12px; padding: 10px; background: #0e0e12; max-height: 360px; overflow: auto; }
+.list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--outline); }
+.list-item:last-child { border-bottom: none; }
+
+/* Mock Dungeon */
+.mock-config { display: flex; gap: 10px; flex-wrap: wrap; }
+.mock-qa { border: 1px solid var(--outline); border-radius: 12px; padding: 12px; background: #0f0f12; margin-top: 10px; }
+.mock-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+
+/* Puzzle Pit */
+.pit-grid { display: grid; gap: 10px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .pit-grid { grid-template-columns: 1fr 1fr; } }
+
+/* Writing Abyss */
+.abyss-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.abyss-text { width: 100%; min-height: 220px; border-radius: 12px; }
+
+/* Error Graveyard */
+.grave-form { display: grid; gap: 10px; margin-bottom: 10px; }
+.grave-form .row { display: grid; gap: 10px; grid-template-columns: 1fr; }
+@media (min-width: 880px) {
+  .grave-form .row { grid-template-columns: repeat(3, 1fr); }
+  .grave-form .row:nth-child(2) { grid-template-columns: 1fr 1fr auto; }
+}
+.graveyard { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+@media (min-width: 900px) { .graveyard { grid-template-columns: repeat(4, 1fr); } }
+.tombstone {
+  border: 1px solid var(--outline);
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 50%), #0e0e12;
+  border-radius: 12px; padding: 12px; position: relative;
+}
+.tombstone h4 { margin: 0 0 6px; font-size: 14px; }
+.tombstone .badge { font-size: 11px; color: var(--text); background: var(--accent); padding: 2px 6px; border-radius: 999px; }
+.tombstone p { margin: 6px 0; color: var(--muted); font-size: 12px; }
+.tombstone .actions { display: flex; justify-content: space-between; margin-top: 8px; }
+.tombstone button { font-size: 12px; padding: 6px 8px; }
+
+/* Results Tracker */
+.results-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 980px) { .results-grid { grid-template-columns: 1fr 1fr; } }
+.canvas-box { border: 1px solid var(--outline); border-radius: 12px; padding: 12px; background: #0f0f12; }
+
+/* Footer */
+.footer { text-align: center; color: var(--muted); padding: 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+
+/* Fun flicker on brand logo */
+@keyframes flicker { 0%,18%,22%,25%,53%,57%,100%{opacity:1;} 20%,24%,55%{opacity:.4;} }
+.brand .logo { animation: flicker 6s infinite; }
+
+/* =============== CINEMATIC INTRO =============== */
+.intro {
+  position: fixed; inset: 0; background: #000; color: #fff; display: grid; place-items: center;
+  z-index: 100; overflow: hidden;
+}
+.intro.hidden { display: none; }
+.intro .content { text-align: center; position: relative; padding: 24px; }
+.intro h1 {
+  font-size: 42px; letter-spacing: 4px; margin: 0 0 12px; text-transform: uppercase;
+  text-shadow: 0 0 18px rgba(255,0,0,0.45);
+}
+.intro p { color: #c9c9c9; margin-bottom: 16px; }
+.scanlines::before {
+  content: ""; position: absolute; inset: 0; background:
+  repeating-linear-gradient(transparent 0px, rgba(255,255,255,0.02) 2px, transparent 4px);
+  mix-blend-mode: overlay; pointer-events: none;
+}
+.glitch {
+  position: relative; display: inline-block;
+}
+.glitch::before, .glitch::after {
+  content: attr(data-text); position: absolute; left: 0; top: 0; width: 100%; clip-path: polygon(0 2%, 100% 0, 100% 35%, 0 30%);
+}
+.glitch::before { left: 2px; text-shadow: -2px 0 #f00; animation: glitch 2s infinite linear alternate-reverse; }
+.glitch::after { left: -2px; text-shadow: 2px 0 #0ff; animation: glitch 3s infinite linear alternate; clip-path: polygon(0 65%,100% 60%,100% 100%,0 100%);}
+@keyframes glitch {
+  0% { transform: translate(0,0); }
+  20% { transform: translate(-2px, 1px); }
+  40% { transform: translate(2px, -1px); }
+  60% { transform: translate(-1px, 2px); }
+  80% { transform: translate(1px, -2px); }
+  100% { transform: translate(0,0); }
+}
+.intro .enter { margin-top: 10px; padding: 12px 16px; background: #111; border: 1px solid #333; color: #fff; border-radius: 10px; cursor: pointer; }
+.intro .enter:hover { border-color: #f33; box-shadow: 0 0 12px rgba(255,0,0,0.35); }
+</style>
+</head>
+<body>
+  <!-- Cinematic Intro -->
+  <div id="intro" class="intro scanlines">
+    <div class="content">
+      <h1 class="glitch" data-text="PREP LAIR">PREP LAIR</h1>
+      <p>Summon focus. Bend time. Conquer exams.</p>
+      <button id="enterBtn" class="enter">Enter the Lair</button>
+    </div>
+  </div>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">☽</span>
+      <h1>Vaibhav’s Prep Lair</h1>
+    </div>
+    <div class="controls">
+      <label class="control">
+        Mood
+        <select id="themeSelect" aria-label="Mood theme">
+          <option value="horror" selected>Horror</option>
+          <option value="desi">Desi</option>
+          <option value="neon">Neon</option>
+        </select>
+      </label>
+      <button id="ambientToggle" class="ghost-btn" aria-pressed="false" title="Ambient sound">Ambient: Off</button>
+    </div>
+  </header>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <button class="active" data-section="focus">Focus Crypt</button>
+    <button data-section="flashcards">Visual Flashcards</button>
+    <button data-section="deck">Deck Editor</button>
+    <button data-section="mock">Mock Dungeon</button>
+    <button data-section="puzzle">Puzzle Pit</button>
+    <button data-section="writing">Writing Abyss</button>
+    <button data-section="graveyard">Error Graveyard</button>
+    <button data-section="results">Results Tracker</button>
+  </nav>
+
+  <main class="container">
+    <!-- Focus Crypt -->
+    <section id="sec-focus" class="panel">
+      <h2>Focus Crypt</h2>
+      <div class="focus-row">
+        <div class="timer">
+          <div class="timer-face" id="timerFace"><span id="timeDisplay">60:00</span></div>
+          <div class="timer-controls">
+            <button id="startPauseBtn" class="primary">Start</button>
+            <button id="resetBtn" class="secondary">Reset</button>
+            <label class="control">
+              Session
+              <select id="sessionLength">
+                <option value="25">25 min</option>
+                <option value="45">45 min</option>
+                <option value="60" selected>60 min</option>
+                <option value="90">90 min</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="stamina">
+          <div class="stamina-head"><h3>Stamina</h3><small>Drains if you tab away</small></div>
+          <div class="stamina-bar"><div id="staminaFill"></div></div>
+          <div class="stamina-meta">
+            <span id="staminaPct">100%</span>
+            <button id="restoreBtn" class="ghost-btn" title="Slow restore">Breathe</button>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <label for="studyNotes"><h3>Notes</h3></label>
+        <textarea id="studyNotes" rows="8" class="abyss-text" placeholder="Write your incantations here... (auto-saves)"></textarea>
+      </div>
+    </section>
+
+    <!-- Visual Flashcards -->
+    <section id="sec-flashcards" class="panel" hidden>
+      <div class="panel-head" style="display:flex;justify-content:space-between;align-items:center;">
+        <h2>Visual Flashcards</h2>
+        <div class="deck-controls" style="display:flex;gap:12px;align-items:center;">
+          <label class="control">Deck
+            <select id="deckSelect"></select>
+          </label>
+          <span id="cardCounter">1 / 1</span>
+        </div>
+      </div>
+
+      <div class="card-stage">
+        <div class="flip-card" id="flipCard" tabindex="0" aria-label="Flashcard">
+          <div class="flip-card-inner" id="flipInner">
+            <div class="flip-card-front" id="cardFront"></div>
+            <div class="flip-card-back" id="cardBack"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <button id="prevCard" class="secondary">Prev (◀)</button>
+        <button id="flipBtn" class="primary">Flip (Space)</button>
+        <button id="nextCard" class="secondary">Next (▶)</button>
+      </div>
+    </section>
+
+    <!-- Deck Editor -->
+    <section id="sec-deck" class="panel" hidden>
+      <h2>Deck Editor</h2>
+      <div class="deck-grid">
+        <div>
+          <h3>Manage Decks</h3>
+          <div class="list" id="deckList"></div>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+            <input id="newDeckName" placeholder="New deck name (e.g., OS Schedulers)" />
+            <button id="addDeckBtn" class="primary">Add Deck</button>
+          </div>
+        </div>
+        <div>
+          <h3>Cards in Deck: <span id="editorDeckName">—</span></h3>
+          <div class="list" id="cardList"></div>
+          <div style="display:grid;gap:8px;margin-top:8px;">
+            <input id="newCardQ" placeholder="Question / Front" />
+            <input id="newCardA" placeholder="Answer / Back" />
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button id="addCardBtn" class="primary">Add Card</button>
+              <button id="exportDeckBtn" class="ghost-btn">Export JSON</button>
+              <label class="ghost-btn" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+                Import JSON
+                <input id="importDeckInput" type="file" accept="application/json" style="display:none;" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mock Dungeon -->
+    <section id="sec-mock" class="panel" hidden>
+      <h2>Mock Dungeon</h2>
+      <div class="mock-config">
+        <label class="control">Mock Type
+          <select id="mockType">
+            <option value="GATE-CSE">GATE CSE — Mini</option>
+            <option value="CLERK">Clerk Aptitude — Mini</option>
+          </select>
+        </label>
+        <label class="control">Duration
+          <select id="mockDuration">
+            <option value="10">10 min</option>
+            <option value="20" selected>20 min</option>
+            <option value="45">45 min</option>
+          </select>
+        </label>
+        <button id="startMockBtn" class="primary">Start Mock</button>
+        <span id="mockTimer" style="align-self:flex-end;color:var(--muted)">Ready</span>
+      </div>
+
+      <div id="mockArea" class="mock-qa" hidden></div>
+      <div class="mock-controls" id="mockControls" hidden>
+        <button id="prevQ" class="secondary">Prev</button>
+        <button id="nextQ" class="secondary">Next</button>
+        <button id="submitMock" class="primary">Submit</button>
+      </div>
+
+      <div id="mockReview" class="panel" style="margin-top:12px;" hidden></div>
+    </section>
+
+    <!-- Puzzle Pit -->
+    <section id="sec-puzzle" class="panel" hidden>
+      <h2>Puzzle Pit</h2>
+      <div class="pit-grid">
+        <div class="panel">
+          <h3>Sprint Config</h3>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <label class="control">Type
+              <select id="pitType">
+                <option value="DI">Data Interpretation</option>
+                <option value="ARR">Seating Arrangement</option>
+                <option value="MIX">Mixed</option>
+              </select>
+            </label>
+            <label class="control">Questions
+              <select id="pitCount">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+                <option value="8">8</option>
+              </select>
+            </label>
+            <label class="control">Time
+              <select id="pitTime">
+                <option value="5">5 min</option>
+                <option value="8" selected>8 min</option>
+                <option value="12">12 min</option>
+              </select>
+            </label>
+            <button id="pitStart" class="primary">Start Sprint</button>
+            <span id="pitTimer" style="align-self:flex-end;color:var(--muted)">Ready</span>
+          </div>
+          <div id="pitArea" class="mock-qa" hidden></div>
+          <div class="mock-controls" id="pitControls" hidden>
+            <button id="pitPrev" class="secondary">Prev</button>
+            <button id="pitNext" class="secondary">Next</button>
+            <button id="pitSubmit" class="primary">Submit</button>
+          </div>
+          <div id="pitReview" class="panel" style="margin-top:12px;" hidden></div>
+        </div>
+        <div class="panel">
+          <h3>Tips</h3>
+          <ul>
+            <li>Sketch structures for seating; mark certainties vs possibilities.</li>
+            <li>For DI, read axes/units first; estimate before calculating.</li>
+            <li>Skip time sinks in first pass; return after scoring easy points.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Writing Abyss -->
+    <section id="sec-writing" class="panel" hidden>
+      <h2>Writing Abyss</h2>
+      <div class="abyss-controls">
+        <label class="control">Word Limit
+          <select id="wordLimit">
+            <option value="125">125</option>
+            <option value="200" selected>200</option>
+            <option value="250">250</option>
+          </select>
+        </label>
+        <label class="control">Prompt
+          <select id="promptSelect">
+            <option value="ai-edu">Role of AI in education</option>
+            <option value="cyber-sec">Cybersecurity in schools</option>
+            <option value="digit-div">Bridging the digital divide</option>
+          </select>
+        </label>
+        <button id="saveAnswer" class="primary">Save Answer</button>
+        <span id="wordCount" style="color:var(--muted)">0 words</span>
+      </div>
+      <div style="margin-top:8px;">
+        <textarea id="abyssText" class="abyss-text" placeholder="Intro – define scope; Body – 2-3 points with examples; Close – policy suggestion or outcome."></textarea>
+      </div>
+      <div id="savedAnswers" class="list" style="margin-top:10px;"></div>
+    </section>
+
+    <!-- Error Graveyard -->
+    <section id="sec-graveyard" class="panel" hidden>
+      <div class="panel-head" style="display:flex;justify-content:space-between;align-items:center;">
+        <h2>Error Graveyard</h2>
+        <div class="filters">
+          <label class="control">Filter
+            <select id="filterExam">
+              <option value="all" selected>All</option>
+              <option value="GATE">GATE</option>
+              <option value="SBI">SBI Clerk</option>
+              <option value="IBPS">IBPS Clerk</option>
+              <option value="LT">LT Grade</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <form id="errorForm" class="grave-form">
+        <div class="row">
+          <label>Exam
+            <select name="exam" required>
+              <option value="GATE">GATE</option>
+              <option value="SBI">SBI Clerk</option>
+              <option value="IBPS">IBPS Clerk</option>
+              <option value="LT">LT Grade</option>
+            </select>
+          </label>
+          <label>Topic
+            <input name="topic" placeholder="e.g., DBMS Locks" required/>
+          </label>
+          <label>Error Type
+            <input name="type" placeholder="Concept / Calculation / Misread" required/>
+          </label>
+        </div>
+        <div class="row">
+          <label>Cause
+            <input name="cause" placeholder="Why it happened..." />
+          </label>
+          <label>Fix Ritual
+            <input name="fix" placeholder="What you'll do next time..." />
+          </label>
+          <button class="primary add-btn" type="submit">Add Tombstone</button>
+        </div>
+      </form>
+
+      <div id="graveyardList" class="graveyard"></div>
+    </section>
+
+    <!-- Results Tracker -->
+    <section id="sec-results" class="panel" hidden>
+      <h2>Results Tracker</h2>
+      <div class="results-grid">
+        <div class="canvas-box">
+          <h3>Scores Over Time</h3>
+          <canvas id="lineChart" width="600" height="260"></canvas>
+        </div>
+        <div class="canvas-box">
+          <h3>Section Breakdown (Last Mock)</h3>
+          <canvas id="barChart" width="600" height="260"></canvas>
+        </div>
+      </div>
+      <div class="list" id="resultsList" style="margin-top:12px;"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>Built for eerie focus — Mood-driven, modular, and fast.</small>
+  </footer>
+
+<script>
+/* =============== THEME + NAV =============== */
+const htmlEl = document.documentElement;
+const themeSelect = document.getElementById('themeSelect');
+const storedTheme = localStorage.getItem('theme') || 'horror';
+applyTheme(storedTheme); themeSelect.value = storedTheme;
+themeSelect.addEventListener('change', (e)=>{ applyTheme(e.target.value); localStorage.setItem('theme', e.target.value); });
+function applyTheme(t){ htmlEl.classList.remove('theme-horror','theme-desi','theme-neon'); htmlEl.classList.add(`theme-${t}`); }
+
+document.querySelectorAll('.navbar button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.navbar button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const sec = btn.dataset.section;
+    document.querySelectorAll('main > section').forEach(s=>s.hidden = true);
+    document.getElementById(`sec-${sec}`).hidden = false;
+    if(sec === 'results') drawCharts();
+  });
+});
+
+/* =============== INTRO SCREEN =============== */
+const intro = document.getElementById('intro');
+const enterBtn = document.getElementById('enterBtn');
+if(localStorage.getItem('introSeen')==='1'){ intro.classList.add('hidden'); }
+enterBtn.addEventListener('click', ()=>{
+  intro.style.transition = 'opacity .6s ease';
+  intro.style.opacity = '0';
+  setTimeout(()=> { intro.classList.add('hidden'); localStorage.setItem('introSeen','1'); }, 600);
+});
+
+/* =============== AMBIENT SOUND =============== */
+let audioCtx = null, ambientActive = false, noiseNode, filter, gain;
+const ambientBtn = document.getElementById('ambientToggle');
+ambientBtn.addEventListener('click', ()=>{
+  if(!audioCtx) initAudio();
+  ambientActive = !ambientActive;
+  ambientBtn.setAttribute('aria-pressed', ambientActive ? 'true' : 'false');
+  ambientBtn.textContent = `Ambient: ${ambientActive ? 'On' : 'Off'}`;
+  gain.gain.linearRampToValueAtTime(ambientActive ? 0.08 : 0.0, audioCtx.currentTime + 0.2);
+});
+function initAudio(){
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const bufferSize = 2 * audioCtx.sampleRate;
+  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const output = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+  noiseNode = audioCtx.createBufferSource(); noiseNode.buffer = noiseBuffer; noiseNode.loop = true;
+  filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 400;
+  gain = audioCtx.createGain(); gain.gain.value = 0.0;
+  noiseNode.connect(filter).connect(gain).connect(audioCtx.destination); noiseNode.start();
+}
+
+/* =============== FOCUS CRYPT (Timer + Stamina + Notes) =============== */
+const timeDisplay = document.getElementById('timeDisplay');
+const startPauseBtn = document.getElementById('startPauseBtn');
+const resetBtn = document.getElementById('resetBtn');
+const sessionLength = document.getElementById('sessionLength');
+const timerFace = document.getElementById('timerFace');
+let totalSeconds = parseInt(sessionLength.value, 10) * 60;
+let remaining = totalSeconds, ticking = false, tickInterval;
+
+function renderTime(sec){ const m = Math.floor(sec/60).toString().padStart(2,'0'); const s = Math.floor(sec%60).toString().padStart(2,'0'); timeDisplay.textContent = `${m}:${s}`; }
+renderTime(remaining);
+startPauseBtn.addEventListener('click', ()=>{ if(!ticking) startTimer(); else pauseTimer(); });
+resetBtn.addEventListener('click', resetTimer);
+sessionLength.addEventListener('change', ()=>{ totalSeconds = parseInt(sessionLength.value,10)*60; remaining = totalSeconds; renderTime(remaining); stopTimer(); pulseFace(); });
+function startTimer(){ if(remaining<=0) remaining = totalSeconds; ticking = true; startPauseBtn.textContent='Pause';
+  tickInterval = setInterval(()=>{ remaining--; renderTime(remaining); drainStamina(0.06); if(remaining<=0){ stopTimer(); flashFace(); } },1000);
+}
+function pauseTimer(){ stopTimer(); startPauseBtn.textContent='Start'; }
+function stopTimer(){ ticking=false; clearInterval(tickInterval); }
+function resetTimer(){ stopTimer(); remaining=totalSeconds; renderTime(remaining); startPauseBtn.textContent='Start'; pulseFace(); }
+function pulseFace(){ timerFace.style.boxShadow='0 0 0px transparent'; setTimeout(()=>{ timerFace.style.boxShadow='var(--glow)'; },60); }
+function flashFace(){ const orig = timerFace.style.filter; timerFace.style.filter='brightness(1.8)'; setTimeout(()=> timerFace.style.filter=orig, 300); }
+
+const staminaFill = document.getElementById('staminaFill');
+const staminaPct = document.getElementById('staminaPct');
+const restoreBtn = document.getElementById('restoreBtn');
+let stamina = parseFloat(localStorage.getItem('stamina') || '100');
+function renderStamina(){ const pct = Math.max(0, Math.min(100, stamina)); staminaFill.style.width = `${pct}%`; staminaPct.textContent = `${Math.round(pct)}%`; localStorage.setItem('stamina', pct.toString()); }
+renderStamina();
+function drainStamina(a){ stamina = Math.max(0, stamina - a); renderStamina(); }
+function restoreStamina(a){ stamina = Math.min(100, stamina + a); renderStamina(); }
+restoreBtn.addEventListener('click', ()=>{ let i=0; const steps=20, amt=0.6; const iv=setInterval(()=>{ i++; restoreStamina(amt); if(i>=steps) clearInterval(iv); },80); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) drainStamina(8); });
+
+const notesEl = document.getElementById('studyNotes');
+notesEl.value = localStorage.getItem('studyNotes') || '';
+notesEl.addEventListener('input', e=> localStorage.setItem('studyNotes', e.target.value));
+
+/* =============== FLASHCARDS + DECKS + EDITOR =============== */
+const defaultDecks = {
+  "DBMS — ACID & Transactions": [
+    {q:'ACID — What does each letter ensure?', a:'Atomicity, Consistency, Isolation, Durability.'},
+    {q:'Dirty vs Non-repeatable vs Phantom reads', a:'Dirty: read uncommitted; Non-repeatable: value changes; Phantom: result set changes.'},
+    {q:'Strict 2PL — Why helpful?', a:'Prevents cascading aborts; eases recovery.'},
+    {q:'WAL rule', a:'Log must be written before data page flush.'}
+  ],
+  "Computer Networks — Protocols": [
+    {q:'TCP vs UDP', a:'TCP: reliable, ordered; UDP: faster, best-effort.'},
+    {q:'OSI vs TCP/IP', a:'OSI(7): App,Pres,Sess,Trans,Net,Link,Phys | TCP/IP(4): App,Trans,Net,Link'},
+    {q:'TCP Congestion Control', a:'Slow start, avoidance, fast retransmit/recovery.'},
+    {q:'DV vs LS routing', a:'DV: Bellman-Ford; LS: Dijkstra.'}
+  ],
+  "GS — Polity Bites": [
+    {q:'Basic structure doctrine', a:'Kesavananda Bharati (1973); limits amending power.'},
+    {q:'FR vs DPSP', a:'FR justiciable; DPSP non-justiciable.'},
+    {q:'Separation of powers (India)', a:'Separation of functions, not rigid.'},
+    {q:'Finance Commission', a:'Recommends Centre-State tax distribution.'}
+  ]
+};
+function getDecks(){ let decks = JSON.parse(localStorage.getItem('decks') || 'null'); if(!decks){ decks = defaultDecks; localStorage.setItem('decks', JSON.stringify(decks)); } return decks; }
+function setDecks(decks){ localStorage.setItem('decks', JSON.stringify(decks)); renderDeckSelect(); renderDeckList(); if(editorDeck) renderCardList(editorDeck); }
+
+const deckSelect = document.getElementById('deckSelect');
+const flipCard = document.getElementById('flipCard');
+const cardFront = document.getElementById('cardFront');
+const cardBack = document.getElementById('cardBack');
+const prevCard = document.getElementById('prevCard');
+const nextCard = document.getElementById('nextCard');
+const flipBtn = document.getElementById('flipBtn');
+const cardCounter = document.getElementById('cardCounter');
+
+let decks = getDecks();
+function renderDeckSelect(){
+  decks = getDecks();
+  const options = Object.keys(decks).map(name=> `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join('');
+  deckSelect.innerHTML = options;
+  const stored = localStorage.getItem('currentDeck');
+  if(stored && decks[stored]) deckSelect.value = stored;
+}
+renderDeckSelect();
+
+let currentDeckName = deckSelect.value || Object.keys(decks)[0];
+let deckIdx = parseInt(localStorage.getItem('deckIndex') || '0', 10);
+deckSelect.addEventListener('change', e=>{ currentDeckName = e.target.value; localStorage.setItem('currentDeck', currentDeckName); deckIdx = 0; flipCard.classList.remove('flipped'); renderCard(); });
+prevCard.addEventListener('click', ()=>{ flipCard.classList.remove('flipped'); const len = decks[currentDeckName].length; deckIdx = (deckIdx - 1 + len) % len; renderCard(); });
+nextCard.addEventListener('click', ()=>{ flipCard.classList.remove('flipped'); const len = decks[currentDeckName].length; deckIdx = (deckIdx + 1) % len; renderCard(); });
+flipBtn.addEventListener('click', ()=> flipCard.classList.toggle('flipped'));
+flipCard.addEventListener('keydown', (e)=>{ if(e.code==='Space'){ e.preventDefault(); flipCard.classList.toggle('flipped'); } if(e.code==='ArrowRight') nextCard.click(); if(e.code==='ArrowLeft') prevCard.click(); });
+function renderCard(){
+  decks = getDecks();
+  currentDeckName = deckSelect.value;
+  const deck = decks[currentDeckName] || [];
+  if(deck.length===0){ cardFront.innerHTML='<h3>Empty Deck</h3><p>Add cards in Deck Editor</p>'; cardBack.innerHTML='<h3>—</h3>'; cardCounter.textContent='0 / 0'; return; }
+  const card = deck[deckIdx % deck.length];
+  cardFront.innerHTML = `<h3>${sanitize(card.q)}</h3><p>Focus, then flip.</p>`;
+  cardBack.innerHTML = `<h3>Answer</h3><p>${sanitize(card.a)}</p>`;
+  cardCounter.textContent = `${(deckIdx%deck.length)+1} / ${deck.length}`;
+  localStorage.setItem('deckIndex', (deckIdx%deck.length).toString());
+}
+function sanitize(str){ const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+function escapeHTML(str=''){ const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+renderCard();
+
+/* Deck Editor */
+const deckListEl = document.getElementById('deckList');
+const newDeckNameEl = document.getElementById('newDeckName');
+const addDeckBtn = document.getElementById('addDeckBtn');
+const editorDeckName = document.getElementById('editorDeckName');
+const cardListEl = document.getElementById('cardList');
+const newCardQ = document.getElementById('newCardQ');
+const newCardA = document.getElementById('newCardA');
+const addCardBtn = document.getElementById('addCardBtn');
+const exportDeckBtn = document.getElementById('exportDeckBtn');
+const importDeckInput = document.getElementById('importDeckInput');
+
+let editorDeck = null;
+function renderDeckList(){
+  decks = getDecks();
+  deckListEl.innerHTML = Object.keys(decks).map(name => `
+    <div class="list-item">
+      <span>${escapeHTML(name)} (${decks[name].length})</span>
+      <span style="display:flex;gap:8px;">
+        <button class="ghost-btn" data-action="edit" data-name="${escapeHTML(name)}">Edit</button>
+        <button class="ghost-btn" data-action="rename" data-name="${escapeHTML(name)}">Rename</button>
+        <button class="ghost-btn" data-action="del" data-name="${escapeHTML(name)}">Delete</button>
+      </span>
+    </div>
+  `).join('');
+  deckListEl.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const name = btn.getAttribute('data-name');
+      const action = btn.getAttribute('data-action');
+      if(action==='edit'){ editorDeck = name; editorDeckName.textContent = name; renderCardList(name); }
+      if(action==='rename'){
+        const nn = prompt('Rename deck:', name);
+        if(nn && nn!==name){
+          const tmp = getDecks();
+          if(tmp[nn]){ alert('Deck with that name exists.'); return; }
+          tmp[nn] = tmp[name]; delete tmp[name]; setDecks(tmp);
+          if(currentDeckName===name){ currentDeckName=nn; deckSelect.value=nn; renderCard(); }
+          if(editorDeck===name){ editorDeck=nn; editorDeckName.textContent=nn; renderCardList(nn); }
+        }
+      }
+      if(action==='del'){
+        if(confirm('Delete deck "'+name+'"?')){ const tmp=getDecks(); delete tmp[name]; setDecks(tmp); if(currentDeckName===name){ currentDeckName=Object.keys(tmp)[0]||''; renderDeckSelect(); renderCard(); } if(editorDeck===name){ editorDeck=null; editorDeckName.textContent='—'; cardListEl.innerHTML=''; } }
+      }
+    });
+  });
+}
+function renderCardList(name){
+  const ds = getDecks(); const deck = ds[name] || [];
+  cardListEl.innerHTML = deck.map((c,i)=>`
+    <div class="list-item">
+      <span style="flex:1;"><strong>Q:</strong> ${escapeHTML(c.q)}<br/><strong>A:</strong> ${escapeHTML(c.a)}</span>
+      <span style="display:flex;gap:8px;">
+        <button class="ghost-btn" data-action="edit-card" data-idx="${i}">Edit</button>
+        <button class="ghost-btn" data-action="del-card" data-idx="${i}">Delete</button>
+      </span>
+    </div>
+  `).join('');
+  cardListEl.querySelectorAll('button').forEach(btn=>{
+    const idx = parseInt(btn.getAttribute('data-idx'),10);
+    btn.addEventListener('click', ()=>{
+      const action = btn.getAttribute('data-action'); const tmp = getDecks(); const deck = tmp[name];
+      if(action==='edit-card'){
+        const nq = prompt('Edit question:', deck[idx].q); if(nq===null) return;
+        const na = prompt('Edit answer:', deck[idx].a); if(na===null) return;
+        deck[idx] = {q:nq, a:na}; setDecks(tmp); renderCardList(name); if(currentDeckName===name){ renderCard(); }
+      }
+      if(action==='del-card'){
+        deck.splice(idx,1); setDecks(tmp); renderCardList(name); if(currentDeckName===name){ deckIdx=0; renderCard(); }
+      }
+    });
+  });
+}
+renderDeckList();
+
+addDeckBtn.addEventListener('click', ()=>{
+  const name = newDeckNameEl.value.trim(); if(!name) return;
+  const tmp = getDecks(); if(tmp[name]){ alert('Deck exists.'); return; }
+  tmp[name] = []; setDecks(tmp); newDeckNameEl.value=''; renderDeckList();
+});
+addCardBtn.addEventListener('click', ()=>{
+  if(!editorDeck){ alert('Select a deck to edit.'); return; }
+  const q = newCardQ.value.trim(); const a = newCardA.value.trim(); if(!q||!a) return;
+  const tmp = getDecks(); tmp[editorDeck].push({q,a}); setDecks(tmp); newCardQ.value=''; newCardA.value=''; renderCardList(editorDeck);
+  if(currentDeckName===editorDeck) renderCard();
+});
+exportDeckBtn.addEventListener('click', ()=>{
+  if(!editorDeck){ alert('Select a deck to export.'); return; }
+  const data = JSON.stringify(getDecks()[editorDeck], null, 2);
+  const blob = new Blob([data], {type:'application/json'}); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=editorDeck.replace(/\s+/g,'_')+'.json'; a.click(); URL.revokeObjectURL(url);
+});
+importDeckInput.addEventListener('change', (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const arr = JSON.parse(reader.result);
+      if(!Array.isArray(arr)) throw new Error('Invalid deck JSON');
+      if(!editorDeck){ // create new deck from file name
+        const name = file.name.replace(/\.json$/,'');
+        const tmp = getDecks(); tmp[name] = arr; setDecks(tmp); editorDeck=name; editorDeckName.textContent=name; renderDeckList(); renderCardList(name);
+      } else {
+        const tmp = getDecks(); tmp[editorDeck] = arr; setDecks(tmp); renderCardList(editorDeck);
+      }
+      alert('Deck imported.');
+    } catch(err){ alert('Failed to import: '+err.message); }
+  };
+  reader.readAsText(file);
+});
+
+/* =============== MOCK DUNGEON =============== */
+const mockType = document.getElementById('mockType');
+const mockDuration = document.getElementById('mockDuration');
+const startMockBtn = document.getElementById('startMockBtn');
+const mockTimer = document.getElementById('mockTimer');
+const mockArea = document.getElementById('mockArea');
+const mockControls = document.getElementById('mockControls');
+const prevQ = document.getElementById('prevQ');
+const nextQ = document.getElementById('nextQ');
+const submitMock = document.getElementById('submitMock');
+const mockReview = document.getElementById('mockReview');
+
+let mockState = null, mockInterval=null;
+
+const MOCKS = {
+  "GATE-CSE": [
+    {id:1, t:'MCQ', q:'Which scheduling is non-preemptive?', opts:['SJF','Round Robin','Priority (preemptive)','Multilevel queue'], ans:[0]},
+    {id:2, t:'MSQ', q:'Properties of B+ Trees include:', opts:['Data in leaves','Leaves linked','All keys only in internal nodes','Root can be leaf'], ans:[0,1,3]},
+    {id:3, t:'NAT', q:'Binary of decimal 13 has how many 1s?', ans: [3], nat:true},
+    {id:4, t:'MCQ', q:'TCP ensures reliability using:', opts:['Parity bit','Checksum & ACKs','CRC only','No mechanism'], ans:[1]},
+    {id:5, t:'MCQ', q:'In ER modeling, a weak entity needs:', opts:['Partial key','Total participation','Both A and B','None'], ans:[2]},
+    {id:6, t:'MCQ', q:'Deadlock requires which condition?', opts:['Mutual exclusion','No preemption','Circular wait','All of these'], ans:[3]},
+  ],
+  "CLERK": [
+    {id:1, t:'MCQ', q:'If SP=Rs 920 and loss=8%, CP=?', opts:['1000','980','950','900'], ans:[0]},
+    {id:2, t:'MCQ', q:'Odd one: 2, 6, 12, 20, 30, 42', opts:['6','12','20','30'], ans:[0]},
+    {id:3, t:'MCQ', q:'Synonym of "Candid"', opts:['Frank','Vague','Deceitful','Harsh'], ans:[0]},
+    {id:4, t:'MCQ', q:'Seating: If A sits 3rd left of B in circle, opposite of B is?', opts:['A','C','D','Cannot be determined'], ans:[3]},
+    {id:5, t:'MCQ', q:'Simple interest on 5000 at 10% for 2yrs = ?', opts:['1000','1200','800','900'], ans:[0]},
+  ]
+};
+
+startMockBtn.addEventListener('click', ()=>{
+  const type = mockType.value; const dur = parseInt(mockDuration.value,10);
+  const questions = MOCKS[type].map(q=> ({...q}));
+  mockState = { type, dur, idx:0, start: Date.now(), answers:{}, q:questions };
+  mockArea.hidden=false; mockControls.hidden=true; mockReview.hidden=true;
+  renderMockQuestion();
+  startMockTimer(dur*60);
+});
+function startMockTimer(sec){
+  clearInterval(mockInterval);
+  let remain = sec; mockTimer.textContent = formatTime(remain);
+  mockInterval = setInterval(()=>{
+    remain--; mockTimer.textContent = formatTime(remain);
+    if(remain<=0){ clearInterval(mockInterval); finishMock(); }
+  },1000);
+}
+function formatTime(s){ const m = Math.floor(s/60).toString().padStart(2,'0'); const ss = (s%60).toString().padStart(2,'0'); return `${m}:${ss}`; }
+
+function renderMockQuestion(){
+  const q = mockState.q[mockState.idx];
+  if(!q){ finishMock(); return; }
+  const saved = mockState.answers[q.id] || null;
+  let html = `<div><strong>Q${mockState.idx+1} (${q.t})</strong><br/>${escapeHTML(q.q)}</div>`;
+  if(q.t==='MCQ'||q.t==='MSQ'){
+    html += '<div style="margin-top:8px;display:grid;gap:8px;">';
+    q.opts.forEach((opt,i)=>{
+      const checked = saved && saved.includes(i) ? 'checked' : '';
+      const type = q.t==='MSQ' ? 'checkbox' : 'radio';
+        html += `<label><input type="${type}" name="opt" value="${i}" ${checked}> ${escapeHTML(opt)}</label>`;
+    });
+    html += '</div>';
+    } else if(q.t==='NAT'){
+    html += `<div style="margin-top:8px;"><label>Answer: <input type="number" name="nat" value="${saved || ''}" /></label></div>`;
+    }
+    mockArea.innerHTML = html;
+    mockControls.hidden = false;
+    mockArea.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input=>{
+      input.addEventListener('change', ()=>{
+        const ans = Array.from(mockArea.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked')).map(i=>parseInt(i.value,10));
+        mockState.answers[q.id] = ans.length > 0 ? ans : null;
+      });
+    });
+    mockArea.querySelector('input[name="nat"]').addEventListener('input', (e)=>{
+      const val = e.target.value.trim();
+      mockState.answers[q.id] = val ? [parseInt(val,10)] : null;
+    });
+    mockArea.hidden = false;
+    mockControls.hidden = false;
+    mockTimer.textContent = formatTime(mockState.dur * 60 - Math.floor((Date.now() - mockState.start) / 1000));
+}
+function finishMock(){
+  clearInterval(mockInterval);
+  mockControls.hidden = true;
+  mockReview.hidden = false;
+  renderMockReview();
+}
+function renderMockReview(){
+  const reviewHtml = mockState.q.map(q=>{
+    const ans = mockState.answers[q.id] || [];
+    let ansHtml = '';
+    if(q.t==='MCQ'||q.t==='MSQ'){
+      ansHtml = q.opts.map((opt,i)=> `<span class="${ans.includes(i) ? 'selected' : ''}">${escapeHTML(opt)}</span>`).join(', ');
+    } else if(q.t==='NAT'){
+      ansHtml = ans.length > 0 ? ans[0].toString() : '—';
+    }
+    return `<div class="mock-review-item"><strong>Q${q.id} (${q.t})</strong>: ${escapeHTML(q.q)}<br/>Your Answer: ${ansHtml}</div>`;
+  }).join('');
+  mockReview.innerHTML = reviewHtml;
+}
+
+
+
+
+submitMock.addEventListener('click', ()=>{
+  if(Object.keys(mockState.answers).length === 0){
+    alert('Please answer at least one question.');
+    return;
+  }
+  const result = {
+    type: mockState.type,
+    duration: mockState.dur,
+    start: new Date(mockState.start).toLocaleString(),
+    answers: mockState.answers
+  };
+  const results = JSON.parse(localStorage.getItem('mockResults') || '[]');
+  results.push(result);
+  localStorage.setItem('mockResults', JSON.stringify(results));
+  alert('Mock submitted! Check Results Tracker.');
+  mockArea.hidden = true; mockControls.hidden = true; mockReview.hidden = true;
+});

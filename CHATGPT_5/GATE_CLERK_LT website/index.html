@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-horror">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Focus Crypt — Horror Prep UI</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">☽</span>
+      <h1>Focus Crypt</h1>
+    </div>
+
+    <div class="controls">
+      <label class="control">
+        Mood
+        <select id="themeSelect" aria-label="Mood theme">
+          <option value="horror" selected>Horror</option>
+          <option value="desi">Desi</option>
+          <option value="neon">Neon</option>
+        </select>
+      </label>
+
+      <button id="ambientToggle" class="ghost-btn" aria-pressed="false" title="Ambient sound">
+        Ambient: Off
+      </button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- Focus Crypt -->
+    <section id="focusCrypt" class="panel">
+      <h2>Focus Crypt</h2>
+
+      <div class="focus-row">
+        <div class="timer">
+          <div class="timer-face" id="timerFace">
+            <span id="timeDisplay">60:00</span>
+          </div>
+          <div class="timer-controls">
+            <button id="startPauseBtn" class="primary">Start</button>
+            <button id="resetBtn" class="secondary">Reset</button>
+            <label class="inline">
+              Session
+              <select id="sessionLength">
+                <option value="25">25 min</option>
+                <option value="45">45 min</option>
+                <option value="60" selected>60 min</option>
+                <option value="90">90 min</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="stamina">
+          <div class="stamina-head">
+            <h3>Stamina</h3>
+            <small>Drains if you tab away</small>
+          </div>
+          <div class="stamina-bar">
+            <div id="staminaFill"></div>
+          </div>
+          <div class="stamina-meta">
+            <span id="staminaPct">100%</span>
+            <button id="restoreBtn" class="ghost-btn" title="Slow restore">Breathe</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <label for="studyNotes" class="notes-head">
+          <h3>Notes</h3>
+          <small>Quick snippets, formulas, traps</small>
+        </label>
+        <textarea id="studyNotes" rows="8" placeholder="Write your incantations here... (auto-saves)"></textarea>
+      </div>
+    </section>
+
+    <!-- Visual Flashcards -->
+    <section id="flashcards" class="panel">
+      <div class="panel-head">
+        <h2>Visual Flashcards</h2>
+        <div class="deck-controls">
+          <label class="control">
+            Deck
+            <select id="deckSelect">
+              <option value="dbms">DBMS — ACID & Transactions</option>
+              <option value="cn">Computer Networks — Protocols</option>
+              <option value="gs">GS — Polity Bite-Sized</option>
+            </select>
+          </label>
+          <span id="cardCounter">1 / 1</span>
+        </div>
+      </div>
+
+      <div class="card-stage">
+        <div class="flip-card" id="flipCard" tabindex="0" aria-label="Flashcard">
+          <div class="flip-card-inner" id="flipInner">
+            <div class="flip-card-front" id="cardFront">
+              <!-- Front content injected by JS -->
+            </div>
+            <div class="flip-card-back" id="cardBack">
+              <!-- Back content injected by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <button id="prevCard" class="secondary">Prev (◀)</button>
+        <button id="flipBtn" class="primary">Flip (Space)</button>
+        <button id="nextCard" class="secondary">Next (▶)</button>
+      </div>
+    </section>
+
+    <!-- Error Graveyard -->
+    <section id="errorGraveyard" class="panel">
+      <div class="panel-head">
+        <h2>Error Graveyard</h2>
+        <div class="filters">
+          <label class="control">
+            Filter
+            <select id="filterExam">
+              <option value="all" selected>All</option>
+              <option value="GATE">GATE</option>
+              <option value="SBI">SBI Clerk</option>
+              <option value="IBPS">IBPS Clerk</option>
+              <option value="LT">LT Grade</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <form id="errorForm" class="grave-form">
+        <div class="row">
+          <label>Exam
+            <select name="exam" required>
+              <option value="GATE">GATE</option>
+              <option value="SBI">SBI Clerk</option>
+              <option value="IBPS">IBPS Clerk</option>
+              <option value="LT">LT Grade</option>
+            </select>
+          </label>
+          <label>Topic
+            <input name="topic" placeholder="e.g., DBMS Locks" required/>
+          </label>
+          <label>Error Type
+            <input name="type" placeholder="Concept / Calculation / Misread" required/>
+          </label>
+        </div>
+        <div class="row">
+          <label>Cause
+            <input name="cause" placeholder="Why it happened..." />
+          </label>
+          <label>Fix Ritual
+            <input name="fix" placeholder="What you'll do next time..." />
+          </label>
+          <button class="primary add-btn" type="submit">Add Tombstone</button>
+        </div>
+      </form>
+
+      <div id="graveyardList" class="graveyard">
+        <!-- Tombstones injected here -->
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>Built for Vaibhav’s eerie focus — Mood-driven, modular, and fast.</small>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

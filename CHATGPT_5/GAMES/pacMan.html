@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Pac‑Snake — Pac‑Man Maze x Snake Tail</title>
+<style>
+  :root{
+    --bg:#0e111a; --panel:#151a28; --text:#e9edf5; --muted:#9aa3b2;
+    --accent:#ffd166; --good:#7ddb29; --bad:#ff6b6b; --wall:#1e2542; --pellet:#e6f0ff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text); background: radial-gradient(1000px 600px at 20% -10%, #12172b, #0e111a);
+    min-height:100vh; display:grid; place-items:start center; padding:18px;
+  }
+  .app{ width:min(100%, 900px); }
+  header, .board{
+    background: linear-gradient(180deg, #182039, var(--panel));
+    border:1px solid #263055; border-radius:12px; box-shadow:0 16px 48px rgba(0,0,0,0.35);
+  }
+  header{ padding:14px; margin-bottom:12px; }
+  h1{ margin:0 0 6px 0; font-size:20px }
+  .controls{ display:flex; gap:10px 12px; flex-wrap:wrap; align-items:center; margin-top:6px; }
+  .stat{ display:grid; gap:2px; min-width:90px; text-align:center; }
+  .label{ color:var(--muted); font-size:11px; }
+  .value{ font-weight:800; letter-spacing:.4px; }
+  button{
+    background: linear-gradient(180deg, #2b3568, #28305e); color:var(--text); border:1px solid #3a4586;
+    padding:8px 12px; border-radius:10px; cursor:pointer; transition:transform .04s ease, filter .2s ease;
+  }
+  button:hover{ filter:brightness(1.08); }
+  button:active{ transform:translateY(1px); }
+
+  .board{ padding:12px; }
+  canvas{
+    display:block; margin:auto; background:#0b0f1f; border-radius:10px;
+    border:1px solid #263055; box-shadow:0 16px 40px rgba(0,0,0,.4) inset;
+    touch-action: manipulation;
+  }
+  .hud{ display:flex; gap:10px 12px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+  .hint{ color:var(--muted); font-size:12px; }
+
+  .toast{
+    position:fixed; left:50%; top:10%; transform:translateX(-50%) translateY(-10px);
+    background: rgba(12,16,30,0.85); border:1px solid #2a335e; color:#e9edf5;
+    padding:10px 14px; border-radius:10px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 12px 28px rgba(0,0,0,0.35);
+    opacity:0; pointer-events:none; transition: opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🟡 Pac‑Snake</h1>
+    <div class="controls">
+      <button id="restart">New game</button>
+      <div class="stat"><div class="label">Score</div><div class="value" id="score">0</div></div>
+      <div class="stat"><div class="label">Length</div><div class="value" id="length">1</div></div>
+      <div class="stat"><div class="label">Pellets</div><div class="value" id="pellets">—</div></div>
+      <div class="stat"><div class="label">Speed</div><div class="value" id="speed">1.00x</div></div>
+      <div class="hint">Controls: Arrow keys / WASD • Don’t hit walls, tail, or the ghost</div>
+    </div>
+  </header>
+
+  <div class="board">
+    <canvas id="game" width="504" height="408" aria-label="Pac-Snake game canvas"></canvas>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  // ====== Config
+  const CELL = 24; // px per tile
+  const ROWS = 17, COLS = 21; // map size
+  const BASE_TICK = 140; // ms, will speed up slightly as you grow
+  const GHOST_TICK_MULT = 1.8; // ghost moves slower than player
+  const COLORS = {
+    wall: '#1e2542',
+    wallEdge: '#31406f',
+    pellet: '#e6f0ff',
+    power: '#ffd166',
+    head: '#ffd166',
+    tail: '#f9c74f',
+    ghost: '#ff6b6b',
+    ghostEye: '#0b0f1f',
+    path: '#0c1122'
+  };
+
+  // ====== Map (17 x 21)
+  // # = wall, . = pellet, ' ' = empty, P = player start, G = ghost start
+  const MAP = [
+    "#####################",
+    "#.........#.........#",
+    "#.###.###.#.###.###.#",
+    "#.#.....#.#.#.....#.#",
+    "#.#.###.#.#.#.###.#.#",
+    "#.....#.....#.....#.#",
+    "#####.#.###.#.#####.#",
+    "#.....#..G..#.....#.#",
+    "#.###.#####.###.###.#",
+    "#.#.............#...#",
+    "#.#.###.#.#.###.#.#.#",
+    "#...#...#.#...#...#.#",
+    "###.#.#####.#.###.#.#",
+    "#.....#..P..#.....#.#",
+    "#.###.#.###.#.###.#.#",
+    "#.........#.........#",
+    "#####################"
+  ];
+
+  // ====== Helpers
+  const $ = sel => document.querySelector(sel);
+  const canvas = $('#game');
+  const ctx = canvas.getContext('2d');
+  const scoreEl = $('#score'), lenEl = $('#length'), pelEl = $('#pellets'), spdEl = $('#speed');
+  const toastEl = $('#toast');
+
+  function toast(txt){
+    toastEl.textContent = txt;
+    toastEl.classList.add('show');
+    setTimeout(()=>toastEl.classList.remove('show'), 1200);
+  }
+
+  // Sounds
+  const AudioKit = (() => {
+    let ctx;
+    function ensure(){ if(!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+    function tone(freq, ms=90, type='sine', vol=0.05){
+      try{
+        ensure();
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type; o.frequency.value = freq; g.gain.value = vol;
+        o.connect(g).connect(ctx.destination);
+        const now = ctx.currentTime;
+        o.start(now);
+        g.gain.setValueAtTime(vol, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + ms/1000);
+        o.stop(now + ms/1000 + 0.02);
+      } catch {}
+    }
+    return {
+      chomp: () => tone(760, 70, 'triangle', 0.04),
+      step:  () => tone(420, 30, 'square', 0.02),
+      boom:  () => { tone(180, 160, 'sawtooth', 0.06); setTimeout(()=>tone(90, 160, 'sawtooth', 0.06), 100); },
+      win:   () => { [660, 880, 990].forEach((f,i)=>setTimeout(()=>tone(f,90,'triangle',0.05), i*100)); }
+    };
+  })();
+
+  // ====== Grid, pellets, walls
+  const walls = new Set();
+  const pellets = new Set();
+  let start = {r: 13, c: 10};
+  let ghostStart = {r: 7, c: 9};
+
+  function key(r,c){ return r + ',' + c; }
+
+  for (let r=0;r<ROWS;r++){
+    for (let c=0;c<COLS;c++){
+      const ch = MAP[r][c];
+      if (ch === '#') walls.add(key(r,c));
+      if (ch === '.') pellets.add(key(r,c));
+      if (ch === 'P') start = {r, c};
+      if (ch === 'G') ghostStart = {r, c};
+    }
+  }
+
+  // ====== Game state
+  let dir = {r:0, c:0}, nextDir = {r:0, c:0};
+  let snake = []; // array of {r,c}, index 0 is head
+  let targetLength = 1;
+  let score = 0;
+  let alive = true;
+  let tickMs = BASE_TICK;
+  let lastStep = 0;
+  let ghost = { r: ghostStart.r, c: ghostStart.c, dr: 0, dc: -1, lastMove: 0 };
+  let pelletsRemaining = pellets.size;
+
+  // ====== Input
+  const DIRS = {
+    ArrowUp:    {r:-1, c:0}, ArrowDown:  {r:1, c:0}, ArrowLeft:  {r:0, c:-1}, ArrowRight: {r:0, c:1},
+    w:{r:-1,c:0}, a:{r:0,c:-1}, s:{r:1,c:0}, d:{r:0,c:1}
+  };
+  window.addEventListener('keydown', (e) => {
+    const d = DIRS[e.key] || DIRS[e.key.toLowerCase()];
+    if (!d) return;
+    // prevent reversing into yourself instantly
+    if (snake.length > 1 && snake[0].r + d.r === snake[1].r && snake[0].c + d.c === snake[1].c) return;
+    nextDir = d;
+    e.preventDefault();
+  });
+
+  // Restart
+  $('#restart').addEventListener('click', () => {
+    startGame();
+  });
+
+  // ====== Logic
+  function isWall(r,c){
+    if (r<0 || c<0 || r>=ROWS || c>=COLS) return true;
+    return walls.has(key(r,c));
+  }
+  function wrap(r,c){
+    // Horizontal tunnels: if moving off left/right, wrap to other side if not a wall
+    if (c < 0) c = COLS-1;
+    if (c >= COLS) c = 0;
+    return {r, c};
+  }
+  function canMove(r,c){ return !isWall(r,c); }
+  function equal(a,b){ return a.r===b.r && a.c===b.c; }
+
+  function neighbors(r,c){
+    const opts = [];
+    const dirs = [{r:-1,c:0},{r:1,c:0},{r:0,c:-1},{r:0,c:1}];
+    for (const d of dirs){
+      let nr=r+d.r, nc=c+d.c;
+      if (nc<0 || nc>=COLS){ const w = wrap(nr,nc); nr=w.r; nc=w.c; }
+      if (!isWall(nr,nc)) opts.push({r:nr,c:nc, dr:d.r, dc:d.c});
+    }
+    return opts;
+  }
+
+  function startGame(){
+    // Reset state
+    snake = [{r:start.r, c:start.c}];
+    targetLength = 1;
+    dir = {r:0,c:0};
+    nextDir = {r:0,c:0};
+    score = 0;
+    tickMs = BASE_TICK;
+    alive = true;
+    ghost = { r: ghostStart.r, c: ghostStart.c, dr: 0, dc: -1, lastMove: 0 };
+    // Reset pellets from map
+    pellets.clear();
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        if (MAP[r][c]==='.') pellets.add(key(r,c));
+      }
+    }
+    pelletsRemaining = pellets.size;
+    scoreEl.textContent = '0';
+    lenEl.textContent = targetLength.toString();
+    pelEl.textContent = pelletsRemaining.toString();
+    spdEl.textContent = (tickMs/BASE_TICK).toFixed(2)+'x';
+    toast('Ready! Eat pellets, avoid ghost.');
+  }
+
+  function step(ts){
+    if (!alive) return;
+
+    // Move only if enough time elapsed
+    if (ts - lastStep >= tickMs){
+      lastStep = ts;
+      // Update direction if valid (not reversing into wall directly)
+      if (nextDir.r !== 0 || nextDir.c !== 0){
+        // If next tile in nextDir is not a wall, accept it
+        const cand = wrap(snake[0].r + nextDir.r, snake[0].c + nextDir.c);
+        if (canMove(cand.r, cand.c)) dir = nextDir;
+      }
+
+      // Compute next head
+      let nr = snake[0].r + dir.r;
+      let nc = snake[0].c + dir.c;
+      const wrapped = wrap(nr, nc); nr = wrapped.r; nc = wrapped.c;
+
+      // If not moving yet, keep waiting
+      if (dir.r===0 && dir.c===0){
+        // draw small step sound less often
+      } else {
+        // Wall check
+        if (!canMove(nr,nc)){
+          // can't move into wall — stop movement until player turns
+          AudioKit.step();
+        } else {
+          // Self collision check (next head into any tail cell)
+          for (let i=0;i<snake.length;i++){
+            if (snake[i].r===nr && snake[i].c===nc){
+              gameOver('Aap apni poonch se takra gaye!');
+              return;
+            }
+          }
+          // Move head
+          snake.unshift({r:nr, c:nc});
+          AudioKit.step();
+
+          // Pellet
+          const k = key(nr,nc);
+          if (pellets.has(k)){
+            pellets.delete(k);
+            pelletsRemaining--;
+            score += 10;
+            targetLength++;
+            // Slight speed up (down to 70% of base)
+            tickMs = Math.max(BASE_TICK*0.7, BASE_TICK - (targetLength-1)*3);
+            AudioKit.chomp();
+            scoreEl.textContent = score.toString();
+            lenEl.textContent = targetLength.toString();
+            pelEl.textContent = pelletsRemaining.toString();
+            spdEl.textContent = (tickMs/BASE_TICK).toFixed(2)+'x';
+
+            if (pelletsRemaining === 0){
+              win();
+              return;
+            }
+          }
+
+          // Trim tail
+          while (snake.length > targetLength) snake.pop();
+
+          // Ghost collision
+          if (snake[0].r===ghost.r && snake[0].c===ghost.c){
+            gameOver('Ghost ne pakad liya!');
+            return;
+          }
+        }
+      }
+    }
+
+    // Ghost movement (slower)
+    if (ts - ghost.lastMove >= tickMs * GHOST_TICK_MULT){
+      ghost.lastMove = ts;
+      // Choose next direction: continue if possible, else random at intersection
+      let options = neighbors(ghost.r, ghost.c);
+      // Avoid reversing if possible
+      const rev = {r: ghost.r - ghost.dr, c: ghost.c - ghost.dc};
+      if (options.length > 1){
+        options = options.filter(o => !(o.r===rev.r && o.c===rev.c));
+      }
+      // Prefer moving towards head occasionally (simple bias)
+      let choice;
+      if (Math.random() < 0.65){
+        options.sort((a,b) => {
+          const da = Math.abs(a.r - snake[0].r) + Math.abs(a.c - snake[0].c);
+          const db = Math.abs(b.r - snake[0].r) + Math.abs(b.c - snake[0].c);
+          return da - db;
+        });
+        choice = options[0] || options[0];
+      } else {
+        choice = options[Math.floor(Math.random()*options.length)] || options[0];
+      }
+      if (choice){
+        ghost.r = choice.r; ghost.c = choice.c; ghost.dr = choice.dr; ghost.dc = choice.dc;
+      }
+      // Check collision after move
+      if (alive && snake[0].r===ghost.r && snake[0].c===ghost.c){
+        gameOver('Ghost ne pakad liya!');
+        return;
+      }
+    }
+
+    draw();
+    requestAnimationFrame(step);
+  }
+
+  function gameOver(msg){
+    alive = false;
+    AudioKit.boom();
+    toast(msg + ' Game Over.');
+    setTimeout(()=>toast('Press "New game" to retry'), 900);
+  }
+  function win(){
+    alive = false;
+    AudioKit.win();
+    toast('Sab pellets khatam! You win!');
+  }
+
+  // ====== Drawing
+  function draw(){
+    // Clear
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // Fill path background
+    ctx.fillStyle = COLORS.path;
+    ctx.fillRect(0,0,COLS*CELL,ROWS*CELL);
+
+    // Walls
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        if (walls.has(key(r,c))){
+          const x=c*CELL, y=r*CELL;
+          ctx.fillStyle = COLORS.wall;
+          ctx.fillRect(x,y,CELL,CELL);
+          // bevel edge
+          ctx.strokeStyle = COLORS.wallEdge;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x+1.5,y+1.5,CELL-3,CELL-3);
+        }
+      }
+    }
+
+    // Pellets
+    for (const k of pellets){
+      const [r,c] = k.split(',').map(Number);
+      const x = c*CELL + CELL/2, y = r*CELL + CELL/2;
+      ctx.fillStyle = COLORS.pellet;
+      ctx.beginPath();
+      ctx.arc(x,y,3.2,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    // Ghost
+    drawGhost(ghost.c*CELL + CELL/2, ghost.r*CELL + CELL/2);
+
+    // Snake tail
+    for (let i=snake.length-1; i>=1; i--){
+      const seg = snake[i];
+      const x = seg.c*CELL + CELL/2;
+      const y = seg.r*CELL + CELL/2;
+      ctx.fillStyle = COLORS.tail;
+      ctx.beginPath();
+      ctx.arc(x, y, CELL*0.30, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Snake head (Pac‑like mouth)
+    if (snake[0]){
+      const head = snake[0];
+      const cx = head.c*CELL + CELL/2;
+      const cy = head.r*CELL + CELL/2;
+      const ang = Math.atan2(dir.r, dir.c); // not perfect, but ok
+      // Default facing right
+      let start = -0.35, end = 0.35, rot = 0;
+      if (dir.r===0 && dir.c===0) { rot = 0; }
+      else if (dir.r===0 && dir.c===1){ rot = 0; }
+      else if (dir.r===0 && dir.c===-1){ rot = Math.PI; }
+      else if (dir.r===-1 && dir.c===0){ rot = -Math.PI/2; }
+      else if (dir.r===1 && dir.c===0){ rot = Math.PI/2; }
+
+      ctx.fillStyle = COLORS.head;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, CELL*0.42, start+rot, (Math.PI*2 - end)+rot, false);
+      ctx.closePath();
+      ctx.fill();
+
+      // Eye
+      ctx.fillStyle = '#0b0f1f';
+      const ex = cx + Math.cos(rot) * 6 - Math.sin(rot) * 6;
+      const ey = cy + Math.sin(rot) * 6 - Math.cos(rot) * 6;
+      ctx.beginPath();
+      ctx.arc(ex, ey, 2.5, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawGhost(x, y){
+    const r = CELL*0.40;
+    ctx.fillStyle = COLORS.ghost;
+    ctx.beginPath();
+    ctx.arc(x, y, r, Math.PI, 0);
+    ctx.lineTo(x + r, y + r*0.8);
+    for (let i=0;i<4;i++){
+      const px = x + r - (i+0.5)* (r/2);
+      const py = y + r*0.8 + (i%2===0?4:-4);
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(x - r, y + r*0.8);
+    ctx.closePath();
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = COLORS.ghostEye;
+    ctx.beginPath(); ctx.arc(x-6, y-2, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+6, y-2, 3, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ====== Boot
+  function resizeCanvas(){
+    canvas.width = COLS*CELL;
+    canvas.height = ROWS*CELL;
+  }
+
+  function gameLoop(ts){
+    if (alive) step(ts);
+    else draw();
+    requestAnimationFrame(gameLoop);
+  }
+
+  resizeCanvas();
+  startGame();
+  requestAnimationFrame(gameLoop);
+})();
+</script>
+</body>
+</html>

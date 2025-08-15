@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fireworks Generator</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for audio -->
+    <script src="https://unpkg.com/tone@14.7.58/build/Tone.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-black text-white flex items-center justify-center">
+    <div class="fixed top-4 left-1/2 -translate-x-1/2 p-4 rounded-xl bg-gray-800/50 backdrop-blur-sm shadow-lg text-center">
+        <p class="font-bold text-lg">Click or tap anywhere to launch a firework!</p>
+        <p class="text-sm text-gray-400">Try different patterns and sounds.</p>
+    </div>
+    <canvas id="fireworksCanvas" class="rounded-xl"></canvas>
+
+    <script>
+        // Get the canvas and its 2D rendering context
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set the canvas size initially and on window resize
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const fireworks = [];
+        const particles = [];
+        const trailParticles = [];
+
+        // Constants for firework behavior
+        const GRAVITY = 0.05;
+        const HUE_INCREMENT = 0.5;
+        let hue = 0;
+
+        // Setup Tone.js for sound effects
+        const launchSynth = new Tone.Synth({
+            oscillator: { type: 'sine' },
+            envelope: {
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.1,
+                release: 0.2
+            }
+        }).toDestination();
+
+        const explosionNoise = new Tone.NoiseSynth({
+            noise: { type: 'pink' },
+            envelope: {
+                attack: 0.005,
+                decay: 0.5,
+                sustain: 0,
+                release: 0.1
+            }
+        }).toDestination();
+
+        /**
+         * Represents a single particle in a firework explosion.
+         */
+        class Particle {
+            constructor(x, y, hue, velocity) {
+                this.x = x;
+                this.y = y;
+                this.hue = hue;
+                this.velocity = velocity;
+                this.friction = 0.95;
+                this.gravity = GRAVITY;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.03 + 0.01;
+            }
+
+            update() {
+                this.velocity.x *= this.friction;
+                this.velocity.y *= this.friction;
+                this.velocity.y += this.gravity;
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue}, 100%, 50%, ${this.alpha})`;
+                ctx.fill();
+            }
+        }
+        
+        /**
+         * Represents the trail left by the firework rocket.
+         */
+        class TrailParticle {
+            constructor(x, y, hue) {
+                this.x = x;
+                this.y = y;
+                this.hue = hue;
+                this.alpha = 1;
+                this.decay = 0.02;
+            }
+            
+            update() {
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 1, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue}, 100%, 80%, ${this.alpha})`;
+                ctx.fill();
+            }
+        }
+
+        /**
+         * Represents a firework rocket that ascends and then explodes.
+         */
+        class Firework {
+            constructor(x, y, targetX, targetY, type) {
+                this.x = x;
+                this.y = y;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.type = type;
+
+                // Calculate velocity to reach the target
+                const distanceX = targetX - x;
+                const distanceY = targetY - y;
+                const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+                this.velocity = {
+                    x: (distanceX / distance) * (Math.random() * 5 + 4),
+                    y: (distanceY / distance) * (Math.random() * 5 + 4)
+                };
+
+                this.hue = hue;
+                this.isAlive = true;
+                this.isExploded = false;
+            }
+
+            update() {
+                if (this.isExploded) return;
+
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+
+                // Add a trail particle
+                trailParticles.push(new TrailParticle(this.x, this.y, this.hue));
+
+                // Check if the firework has reached its target
+                const distanceX = this.targetX - this.x;
+                const distanceY = this.targetY - this.y;
+                const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+                
+                if (distance < 5) {
+                    this.isExploded = true;
+                    this.explode();
+                    this.isAlive = false;
+                }
+            }
+
+            draw() {
+                if (this.isExploded) return;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = `hsl(${this.hue}, 100%, 50%)`;
+                ctx.fill();
+            }
+
+            explode() {
+                explosionNoise.triggerAttackRelease('8n');
+                
+                switch (this.type) {
+                    case 'ring':
+                        this.createRingParticles();
+                        break;
+                    case 'burst':
+                        this.createBurstParticles();
+                        break;
+                    case 'star':
+                        this.createStarParticles();
+                        break;
+                    default:
+                        this.createBasicParticles();
+                        break;
+                }
+            }
+
+            createBasicParticles() {
+                for (let i = 0; i < 150; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 5 + 1;
+                    const velocity = {
+                        x: Math.cos(angle) * speed,
+                        y: Math.sin(angle) * speed
+                    };
+                    particles.push(new Particle(this.x, this.y, this.hue, velocity));
+                }
+            }
+            
+            createRingParticles() {
+                const particleCount = 100;
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = (Math.PI * 2 / particleCount) * i;
+                    const speed = Math.random() * 2 + 3;
+                    const velocity = {
+                        x: Math.cos(angle) * speed,
+                        y: Math.sin(angle) * speed
+                    };
+                    const particleHue = this.hue + Math.random() * 20 - 10;
+                    particles.push(new Particle(this.x, this.y, particleHue, velocity));
+                }
+            }
+
+            createBurstParticles() {
+                for (let i = 0; i < 10; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 3 + 2;
+                    const velocity = {
+                        x: Math.cos(angle) * speed,
+                        y: Math.sin(angle) * speed
+                    };
+                    particles.push(new Particle(this.x, this.y, this.hue, velocity));
+                }
+                setTimeout(() => {
+                    for (let i = 0; i < particles.length; i++) {
+                         if (particles[i].alpha > 0.5) {
+                            for (let j = 0; j < 5; j++) {
+                                const angle = Math.random() * Math.PI * 2;
+                                const speed = Math.random() * 2 + 1;
+                                const velocity = {
+                                    x: Math.cos(angle) * speed,
+                                    y: Math.sin(angle) * speed
+                                };
+                                const particleHue = particles[i].hue + Math.random() * 30 - 15;
+                                particles.push(new Particle(particles[i].x, particles[i].y, particleHue, velocity));
+                            }
+                         }
+                    }
+                }, 500);
+            }
+
+            createStarParticles() {
+                const points = 5; // Number of star points
+                for (let i = 0; i < points; i++) {
+                    const angle = (Math.PI * 2 / points) * i + Math.PI / 2;
+                    // Outer point velocity
+                    const outerSpeed = Math.random() * 2 + 5;
+                    const outerVelocity = {
+                        x: Math.cos(angle) * outerSpeed,
+                        y: Math.sin(angle) * outerSpeed
+                    };
+                    particles.push(new Particle(this.x, this.y, this.hue, outerVelocity));
+                    
+                    // Inner point velocity, slightly delayed
+                    const innerAngle = angle + Math.PI / points;
+                    const innerSpeed = Math.random() * 2 + 2;
+                    const innerVelocity = {
+                        x: Math.cos(innerAngle) * innerSpeed,
+                        y: Math.sin(innerAngle) * innerSpeed
+                    };
+                    particles.push(new Particle(this.x, this.y, this.hue, innerVelocity));
+                }
+            }
+        }
+
+        /**
+         * Main animation loop.
+         */
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Fading background for a trailing effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update and draw fireworks
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                fireworks[i].update();
+                fireworks[i].draw();
+                if (!fireworks[i].isAlive) {
+                    fireworks.splice(i, 1);
+                }
+            }
+            
+            // Update and draw trail particles
+            for (let i = trailParticles.length - 1; i >= 0; i--) {
+                trailParticles[i].update();
+                trailParticles[i].draw();
+                if (trailParticles[i].alpha <= trailParticles[i].decay) {
+                    trailParticles.splice(i, 1);
+                }
+            }
+
+            // Update and draw particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].alpha <= particles[i].decay) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // Event listener for mouse clicks or touch
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Launch a new firework from the bottom center of the screen
+            const startX = canvas.width / 2;
+            const startY = canvas.height;
+            
+            // Update hue for the next firework
+            hue += HUE_INCREMENT;
+            if (hue > 360) {
+                hue = 0;
+            }
+
+            // Randomly select a firework type
+            const fireworkTypes = ['basic', 'ring', 'burst', 'star'];
+            const randomType = fireworkTypes[Math.floor(Math.random() * fireworkTypes.length)];
+
+            fireworks.push(new Firework(startX, startY, mouseX, mouseY, randomType));
+            launchSynth.triggerAttackRelease('C4', '8n');
+        });
+
+        // Start the animation loop
+        animate();
+    </script>
+</body>
+</html>

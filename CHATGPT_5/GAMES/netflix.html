@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="color-scheme" content="dark light" />
+<title>CineSplash — Netflix-style Landing</title>
+<style>
+  :root{
+    --bg:#0b0b0f; --panel:#111217; --panel-2:#151823; --text:#f1f5f9; --muted:#b3bdcc;
+    --accent:#e50914; --accent-2:#f6121d; --ok:#22c55e; --warn:#f59e0b;
+    --ring:#222737; --card:#0f1117; --link:#94a3b8;
+    --shadow: 0 20px 60px rgba(0,0,0,.45);
+    --hero-image: radial-gradient(1200px 600px at 70% 10%, #22273a, #0b0b0f);
+  }
+  [data-theme="neon"]{ --accent:#7ef9ff; --accent-2:#22d3ee; --ring:#233245; }
+  [data-theme="desi"]{ --accent:#ff8c00; --accent-2:#ff5d00; --ring:#2a2f3f; }
+
+  *{ box-sizing:border-box }
+  html,body{ height:100% }
+  body{
+    margin:0; font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, "Noto Sans Devanagari", "Mangal";
+    background: var(--bg); color: var(--text); line-height: 1.5;
+  }
+  a{ color: var(--link); text-decoration: none }
+  a:hover{ text-decoration: underline }
+  img{ max-width:100%; display:block }
+  button{ font: inherit }
+  .wrap{ max-width: 1200px; padding: 0 20px; margin: 0 auto }
+
+  /* Top Nav */
+  .nav{
+    position: sticky; top:0; z-index:20;
+    background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,0));
+    padding: 14px 0;
+    backdrop-filter: blur(4px);
+  }
+  .nav .row{
+    display:flex; align-items:center; gap:12px;
+  }
+  .logo{
+    font-weight:800; font-size: clamp(20px, 2.5vw, 28px);
+    color: var(--text); letter-spacing:.5px; display:flex; align-items:center; gap:8px;
+  }
+  .logo .dot{ width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 20px var(--accent-2) }
+  .nav .sp{ flex:1 }
+  .nav .btn, .nav select{
+    background:#0f1117; border: 1px solid var(--ring); color:var(--text);
+    padding:8px 12px; border-radius: 10px; cursor:pointer;
+  }
+  .nav .btn:hover{ filter: brightness(1.1) }
+
+  /* Hero */
+  .hero{
+    position:relative; min-height: 78vh; display:grid; place-items:center; overflow:hidden;
+    background: var(--hero-image);
+  }
+  .hero video{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.35; filter: saturate(1.1) contrast(1.1);
+    display:none;
+  }
+  .hero::after{
+    content:""; position:absolute; inset:0;
+    background: linear-gradient(180deg, rgba(0,0,0,.55) 10%, rgba(0,0,0,.4) 50%, rgba(0,0,0,.8) 100%);
+    pointer-events:none;
+  }
+  .hero-content{
+    position:relative; z-index:1; text-align:center; padding: 40px 0;
+  }
+  .headline{
+    font-weight:900; font-size: clamp(28px, 5vw, 56px); letter-spacing:.4px;
+    text-shadow: 0 10px 30px rgba(0,0,0,.6);
+  }
+  .tagline{ color: var(--muted); font-size: clamp(14px, 2.4vw, 18px); margin-top:8px }
+  .cta{
+    margin-top:18px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;
+  }
+  .field{
+    display:flex; align-items:center; gap:10px; padding:8px; background:#0f1117; border:1px solid var(--ring);
+    border-radius:12px; width:min(560px, 95vw);
+  }
+  .field input{
+    flex:1; background:transparent; border:none; outline:none; color:var(--text); padding:10px; font-size:16px;
+  }
+  .cta .action{
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    color:#fff; border:none; padding:12px 20px; border-radius:12px; cursor:pointer; font-weight:800; letter-spacing:.3px;
+    box-shadow: 0 10px 30px rgba(229,9,20,.25);
+  }
+  .cta .action:hover{ filter: brightness(1.05) }
+  .cta .tiers{ display:flex; gap:8px; flex-wrap:wrap }
+  .chip{
+    border:1px solid var(--ring); background:#121420; color: var(--muted);
+    padding:8px 12px; border-radius:999px; font-size:12px;
+  }
+  .hero-tools{
+    margin-top:14px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+  }
+  .hero-tools .btn{ background:#0f1117; border:1px solid var(--ring); color:var(--text); padding:10px 12px; border-radius:10px; cursor:pointer }
+  .hero-tools input[type="file"]{ display:none }
+
+  /* Rows */
+  .section{ padding: 34px 0 }
+  .row-title{ font-weight:800; margin-bottom:12px }
+  .grid{
+    display:grid; grid-template-columns: repeat(6, 1fr); gap:10px;
+  }
+  @media (max-width: 1100px){ .grid{ grid-template-columns: repeat(5, 1fr) } }
+  @media (max-width: 900px){ .grid{ grid-template-columns: repeat(4, 1fr) } }
+  @media (max-width: 700px){ .grid{ grid-template-columns: repeat(3, 1fr) } }
+  @media (max-width: 520px){ .grid{ grid-template-columns: repeat(2, 1fr) } }
+
+  .card{
+    position:relative; aspect-ratio: 16/9; border-radius:10px; overflow:hidden; background:#0f1117; border:1px solid var(--ring);
+    box-shadow: var(--shadow); transform: translateZ(0);
+  }
+  .thumb{
+    position:absolute; inset:0; background: linear-gradient(135deg, #2a3044, #111827);
+    display:grid; place-items:center; color:#dbeafe; font-weight:700; font-size:14px;
+  }
+  .thumb::after{
+    content:""; position:absolute; inset:-40%; background: conic-gradient(from 180deg at 50% 50%, transparent 0 75%, rgba(255,255,255,.05) 85% 100%);
+    animation: sweep 6s linear infinite;
+  }
+  @keyframes sweep{ to{ transform: rotate(1turn) } }
+  .overlay{
+    position:absolute; inset:auto 0 0 0; padding:10px; display:flex; gap:8px; align-items:center;
+    background: linear-gradient(180deg, rgba(0,0,0,0), rgba(5,6,10,.9));
+    transform: translateY(40%); transition: transform .25s ease;
+  }
+  .card:hover .overlay{ transform: translateY(0) }
+  .play{
+    width:34px; height:34px; display:grid; place-items:center; border-radius:50%; background: rgba(255,255,255,.1); border:1px solid var(--ring);
+    cursor:pointer;
+  }
+  .m-title{ font-size:13px; font-weight:700; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .stars{ color:#fde047; font-size:12px }
+  .badge{ font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid var(--ring); background:#0f1117; color:var(--muted) }
+
+  /* Feature rows (like Netflix panels) */
+  .feature{
+    display:grid; grid-template-columns: 1.2fr 1fr; gap:20px; align-items:center; padding:28px; background: #0e111a; border:1px solid var(--ring); border-radius:14px;
+  }
+  .feature .illus{
+    aspect-ratio:16/9; border-radius:12px; border:1px solid var(--ring); background:
+      radial-gradient(600px 240px at 70% 35%, rgba(255,255,255,.06), transparent 60%),
+      linear-gradient(135deg, #1b2236, #0f141f);
+    position:relative; overflow:hidden;
+  }
+  .feature .illus .float{ position:absolute; inset:auto auto 8% 8%; background:#0f1117; border:1px solid var(--ring); border-radius:10px; padding:8px 10px; display:flex; gap:8px; align-items:center }
+  .feature .illus .dot{ width:12px; height:12px; border-radius:50%; background:var(--ok) }
+  .feature .copy h3{ margin:0 0 6px; font-size: clamp(18px, 3vw, 26px) }
+  .feature .copy p{ margin:0; color:var(--muted) }
+
+  /* FAQ */
+  .faq{ display:grid; gap:10px }
+  .faq details{
+    background:#0e111a; border:1px solid var(--ring); border-radius:10px; padding:14px;
+  }
+  .faq summary{ cursor:pointer; font-weight:700 }
+  .faq p{ color:var(--muted); margin:8px 0 0 }
+
+  /* Footer */
+  footer{
+    padding: 34px 0; color: var(--muted); border-top: 1px solid var(--ring);
+    background: radial-gradient(800px 240px at 70% 0%, #0e121c, transparent 60%);
+  }
+  .links{ display:grid; grid-template-columns: repeat(4, 1fr); gap:10px }
+  .links a{ display:block; padding:6px 0; color:var(--muted) }
+  @media (max-width: 760px){ .links{ grid-template-columns: repeat(2, 1fr) } }
+
+  /* Modal */
+  .modal{ position:fixed; inset:0; background: rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; padding:20px; z-index:50 }
+  .modal .box{ width:min(900px, 96vw); background:#0f1117; border:1px solid var(--ring); border-radius:14px; overflow:hidden; box-shadow: var(--shadow) }
+  .modal .head{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--ring) }
+  .modal .body{ padding:12px; display:grid; gap:10px }
+  .modal iframe, .modal video{ width:100%; aspect-ratio:16/9; border:none; border-radius:10px; background:#0b0b0f }
+  .xbtn{ background:#151826; border:1px solid var(--ring); color:var(--text); padding:8px 10px; border-radius:10px; cursor:pointer }
+
+  /* Toast */
+  .toast{
+    position: fixed; bottom:18px; left:50%; transform: translateX(-50%); background:#111827; border:1px solid var(--ring);
+    padding:10px 14px; border-radius:12px; color:#e2e8f0; display:none; z-index:60;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    .thumb::after{ animation:none }
+    .overlay{ transition:none }
+  }
+</style>
+</head>
+<body data-theme="desi">
+  <!-- Nav -->
+  <nav class="nav">
+    <div class="wrap row">
+      <div class="logo"><span class="dot"></span> CineSplash</div>
+      <div class="sp"></div>
+      <select id="themeSel" title="Theme">
+        <option value="">Classic</option>
+        <option value="neon">Neon</option>
+        <option value="desi" selected>Desi</option>
+      </select>
+      <button class="btn" id="langBtn" title="Toggle Hindi/English">हिंदी / EN</button>
+      <button class="btn" id="signinBtn">Sign In</button>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero" id="hero">
+    <video id="heroVideo" autoplay muted loop playsinline></video>
+    <div class="hero-content wrap">
+      <div id="headline" class="headline">Unlimited movies, TV shows, and more.</div>
+      <div id="tagline" class="tagline">Watch anywhere. Cancel anytime.</div>
+      <div class="cta" role="form" aria-label="Sign up form">
+        <div class="field" style="--accent:var(--accent)">
+          <input id="email" type="email" placeholder="Email address" autocomplete="email" />
+          <button class="action" id="getStarted">Get Started</button>
+        </div>
+        <div class="tiers" aria-label="Plans">
+          <span class="chip">Mobile</span>
+          <span class="chip">Basic</span>
+          <span class="chip">Standard</span>
+          <span class="chip">Premium</span>
+        </div>
+      </div>
+      <div class="hero-tools">
+        <label class="btn" for="heroFile">Upload hero image/video</label>
+        <input id="heroFile" type="file" accept="image/*,video/*" />
+        <button class="btn" id="openTrailer">Watch trailer (modal)</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section wrap">
+      <div class="feature">
+        <div class="copy">
+          <h3>Cinematic storytelling meets the comfort of home.</h3>
+          <p>Enjoy on your TV, laptop, mobile, or tablet. Your world, your pace, your scene.</p>
+        </div>
+        <div class="illus">
+          <div class="float"><div class="dot"></div><strong>Smart Downloads</strong><span style="color:var(--muted)"> • auto next episode</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap">
+      <h2 class="row-title">Trending Now</h2>
+      <div class="grid" id="gridA"></div>
+    </section>
+
+    <section class="section wrap">
+      <h2 class="row-title">Because you watched Thrillers</h2>
+      <div class="grid" id="gridB"></div>
+    </section>
+
+    <section class="section wrap">
+      <div class="feature">
+        <div class="illus"></div>
+        <div class="copy">
+          <h3>Download your favorites to watch offline.</h3>
+          <p>Save data, keep the tension high. Perfect for long rides and longer nights.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap">
+      <h2 class="row-title">Frequently Asked Questions</h2>
+      <div class="faq">
+        <details>
+          <summary>What is CineSplash?</summary>
+          <p>A Netflix-style demo landing page you can customize, built in a single HTML file.</p>
+        </details>
+        <details>
+          <summary>How do I change the hero background?</summary>
+          <p>Click “Upload hero image/video” above and select a local file. Images become the hero background; videos autoplay muted.</p>
+        </details>
+        <details>
+          <summary>Can I disable animations?</summary>
+          <p>Yes, set your system to “reduce motion” or switch theme to Classic for a calmer feel.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>Questions? Call 000-800-040-1843</p>
+      <div class="links" aria-label="Footer links">
+        <a href="#">FAQ</a>
+        <a href="#">Help Centre</a>
+        <a href="#">Account</a>
+        <a href="#">Media Centre</a>
+        <a href="#">Investor Relations</a>
+        <a href="#">Jobs</a>
+        <a href="#">Ways to Watch</a>
+        <a href="#">Terms of Use</a>
+        <a href="#">Privacy</a>
+        <a href="#">Cookie Preferences</a>
+        <a href="#">Corporate Information</a>
+        <a href="#">Contact Us</a>
+      </div>
+      <div style="margin-top:12px; display:flex; gap:10px; align-items:center">
+        <select id="footLang">
+          <option>English</option>
+          <option>हिंदी</option>
+        </select>
+        <span style="margin-left:auto; color:#6b7280">CineSplash India</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Trailer Modal -->
+  <div class="modal" id="modal">
+    <div class="box">
+      <div class="head">
+        <strong>Trailer</strong>
+        <button class="xbtn" id="closeModal">Close</button>
+      </div>
+      <div class="body">
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <input id="ytUrl" placeholder="Paste YouTube link (optional)" style="flex:1; background:#0b0b0f; color:var(--text); border:1px solid var(--ring); padding:8px; border-radius:10px" />
+          <button class="xbtn" id="loadYT">Load YouTube</button>
+          <label for="trailerFile" class="xbtn">Upload video file</label>
+          <input id="trailerFile" type="file" accept="video/*" hidden />
+        </div>
+        <div id="trailerHolder">
+          <div style="padding:12px; color:var(--muted)">Paste a YouTube link or upload a local video to preview here.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const hero = $("#hero");
+  const heroVideo = $("#heroVideo");
+  const heroFile = $("#heroFile");
+  const headline = $("#headline");
+  const tagline = $("#tagline");
+  const themeSel = $("#themeSel");
+  const langBtn = $("#langBtn");
+  const toast = $("#toast");
+
+  // Theme
+  themeSel.addEventListener("change", ()=>{
+    document.body.setAttribute("data-theme", themeSel.value || "");
+    localStorage.setItem("cine_theme", themeSel.value || "");
+    tip("Theme: " + (themeSel.selectedOptions[0]?.textContent || "Classic"));
+  });
+  const savedTheme = localStorage.getItem("cine_theme");
+  if(savedTheme){ themeSel.value = savedTheme; document.body.setAttribute("data-theme", savedTheme); }
+
+  // Language toggle (EN/HI)
+  let isHi = false;
+  function setLang(){
+    if(isHi){
+      headline.textContent = "अनलिमिटेड फ़िल्में, टीवी शो और भी बहुत कुछ।";
+      tagline.textContent = "कहीं भी देखें। कभी भी रद्द करें।";
+    }else{
+      headline.textContent = "Unlimited movies, TV shows, and more.";
+      tagline.textContent = "Watch anywhere. Cancel anytime.";
+    }
+  }
+  langBtn.addEventListener("click", ()=>{ isHi = !isHi; setLang(); tip(isHi ? "हिंदी" : "English"); });
+  setLang();
+
+  // Hero media: allow local image/video
+  heroFile.addEventListener("change", e=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    const url = URL.createObjectURL(f);
+    if(f.type.startsWith("video/")){
+      hero.style.setProperty("--hero-image", "none");
+      heroVideo.src = url; heroVideo.style.display = "block";
+      tip("Hero video applied");
+    }else if(f.type.startsWith("image/")){
+      heroVideo.pause(); heroVideo.removeAttribute("src"); heroVideo.load(); heroVideo.style.display = "none";
+      hero.style.setProperty("--hero-image", `url("${url}") center/cover no-repeat fixed`);
+      tip("Hero image applied");
+    }else{
+      tip("Unsupported file. Use image/video.", true);
+    }
+  });
+
+  // CTA
+  $("#getStarted").addEventListener("click", ()=>{
+    const email = $("#email").value.trim();
+    if(!email || !/\S+@\S+\.\S+/.test(email)){ tip("Enter a valid email", true); return; }
+    tip("Welcome! Check your inbox to continue.");
+  });
+
+  // Trailer modal
+  const modal = $("#modal");
+  $("#openTrailer").addEventListener("click", ()=>{ modal.style.display = "flex"; });
+  $("#closeModal").addEventListener("click", closeModal);
+  modal.addEventListener("click", e=>{ if(e.target === modal) closeModal(); });
+  function closeModal(){
+    modal.style.display = "none";
+    // stop any playing media
+    const holder = $("#trailerHolder");
+    holder.innerHTML = `<div style="padding:12px; color:var(--muted)">Paste a YouTube link or upload a local video to preview here.</div>`;
+  }
+
+  $("#loadYT").addEventListener("click", ()=>{
+    const val = $("#ytUrl").value.trim();
+    if(!val){ tip("Paste a YouTube link", true); return; }
+    const id = parseYouTubeId(val);
+    if(!id){ tip("Invalid YouTube URL", true); return; }
+    $("#trailerHolder").innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?rel=0&modestbranding=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  });
+
+  $("#trailerFile").addEventListener("change", e=>{
+    const f = e.target.files[0]; if(!f) return;
+    if(!f.type.startsWith("video/")){ tip("Please choose a video file", true); return; }
+    const url = URL.createObjectURL(f);
+    $("#trailerHolder").innerHTML = `<video src="${url}" controls playsinline></video>`;
+  });
+
+  function parseYouTubeId(url){
+    try{
+      const u = new URL(url, location.href);
+      if(u.hostname.includes("youtu.be")) return u.pathname.slice(1);
+      if(u.hostname.includes("youtube.com")){
+        if(u.searchParams.get("v")) return u.searchParams.get("v");
+        const m = u.pathname.match(/\/shorts\/([^/?#]+)/); if(m) return m[1];
+      }
+      // if it's a bare ID
+      return /^[\w-]{11}$/.test(url) ? url : "";
+    }catch{ return /^[\w-]{11}$/.test(url) ? url : ""; }
+  }
+
+  // Toast helper
+  let toastTimer;
+  function tip(msg, warn){
+    toast.textContent = msg;
+    toast.style.display = "block";
+    toast.style.borderColor = warn ? "var(--warn)" : "var(--ring)";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> toast.style.display = "none", 2200);
+  }
+
+  // Seed rows (placeholder thumbnails)
+  const showsA = [
+    { title:"Silent Courtyard", badge:"HD", stars:4 },
+    { title:"Monsoon Motel", badge:"NEW", stars:5 },
+    { title:"Neon Raat", badge:"HD", stars:4 },
+    { title:"Tunnel No. 9", badge:"TOP", stars:4 },
+    { title:"Dholak Drive", badge:"HD", stars:3 },
+    { title:"Auraiya After Dark", badge:"TOP", stars:5 },
+    { title:"Whisper Lane", badge:"HD", stars:4 },
+    { title:"Ghanti", badge:"NEW", stars:4 },
+    { title:"Chai & Chaos", badge:"HD", stars:3 },
+    { title:"Parallax", badge:"HD", stars:4 },
+    { title:"Nightjar", badge:"HD", stars:4 },
+    { title:"Saffron Sky", badge:"NEW", stars:5 },
+  ];
+  const showsB = [
+    { title:"The Last Rickshaw", badge:"HD", stars:4 },
+    { title:"Crimson Stair", badge:"TOP", stars:4 },
+    { title:"Static Prayer", badge:"HD", stars:3 },
+    { title:"Blue Alley", badge:"HD", stars:4 },
+    { title:"Echo Bazaar", badge:"NEW", stars:5 },
+    { title:"Paper Walls", badge:"HD", stars:4 },
+    { title:"Salt & Smoke", badge:"HD", stars:3 },
+    { title:"Shutter", badge:"TOP", stars:4 },
+    { title:"Gridlock", badge:"HD", stars:4 },
+    { title:"Driftwood", badge:"HD", stars:3 },
+    { title:"Razor Rain", badge:"HD", stars:4 },
+    { title:"Vermilion", badge:"NEW", stars:5 },
+  ];
+
+  function makeGrid(el, data){
+    const frag = document.createDocumentFragment();
+    data.forEach((item,i)=>{
+      const card = document.createElement("article");
+      card.className = "card";
+      const toneA = 170 + (i*23)%60, toneB = 200 + (i*37)%50;
+      card.innerHTML = `
+        <div class="thumb" style="background: linear-gradient(135deg, hsl(${toneA} 35% 22%), hsl(${toneB} 35% 12%));">
+          <span>${item.title}</span>
+        </div>
+        <div class="overlay">
+          <button class="play" title="Play trailer" aria-label="Play trailer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <div class="m-title">${item.title}</div>
+          <div class="stars">${"★".repeat(item.stars)}${"☆".repeat(5-item.stars)}</div>
+          <span class="badge">${item.badge}</span>
+        </div>`;
+      card.querySelector(".play").addEventListener("click", ()=> { document.getElementById("openTrailer").click(); });
+      frag.appendChild(card);
+    });
+    el.appendChild(frag);
+  }
+  makeGrid(document.getElementById("gridA"), showsA);
+  makeGrid(document.getElementById("gridB"), showsB);
+
+  // Footer language mirror
+  document.getElementById("footLang").addEventListener("change", (e)=>{
+    isHi = e.target.value.includes("हिं"); setLang();
+  });
+
+  // Keyboard accessibility
+  document.addEventListener("keydown", (e)=>{
+    if(e.key === "Escape" && document.getElementById("modal").style.display === "flex") closeModal();
+  });
+})();
+</script>
+</body>
+</html>

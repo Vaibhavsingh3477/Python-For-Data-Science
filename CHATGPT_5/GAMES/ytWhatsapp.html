@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>StreamChat Pro — YouTube × WhatsApp</title>
+<meta name="color-scheme" content="light dark">
+<style>
+  :root{
+    --bg:#0f1115; --elev:#171a21; --elev2:#1d212a; --text:#e8eef5; --muted:#a8b3c7;
+    --accent:#00bfa6; --bubble-me:#075E54; --bubble-them:#262b36; --bubble-me-text:#eaf7f4; --ring:#2c313d;
+    --success:#00d084; --warn:#ffb100; --danger:#ff5c5c;
+    --shadow: 0 10px 30px rgba(0,0,0,.4);
+  }
+  [data-theme="neon"]{ --accent:#7ef9ff; --bubble-me:#1b8a78; }
+  [data-theme="monsoon"]{ --accent:#7aa2ff; --bubble-me:#3d5a98; }
+  [data-theme="desi"]{ --accent:#ff8c00; --bubble-me:#1b5e20; }
+
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7fb; --elev:#ffffff; --elev2:#f0f3f9; --text:#131722; --muted:#4d5767; --ring:#e6e9f2; --shadow:0 8px 20px rgba(0,0,0,.08); }
+  }
+
+  *{ box-sizing:border-box }
+  html,body{ height:100% }
+  body{
+    margin:0; font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, "Noto Sans Devanagari", "Mangal";
+    background:linear-gradient(180deg, var(--bg), #0c0e12);
+    color:var(--text); display:flex; min-height:100vh;
+  }
+  .app{
+    display:grid; grid-template-columns: 1.6fr 1fr; grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "topbar topbar"
+      "player chat"
+      "status chat";
+    gap:12px; width:100%; padding:12px; max-width:1400px; margin:0 auto;
+  }
+  @media (max-width: 980px){
+    .app{
+      grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; gap:8px;
+      grid-template-areas:
+        "topbar"
+        "tabs"
+        "content"
+        "status";
+    }
+  }
+
+  .card{ background:var(--elev); border:1px solid var(--ring); border-radius:14px; box-shadow:var(--shadow) }
+
+  .topbar{ grid-area: topbar; display:flex; align-items:center; gap:10px; padding:10px 12px; }
+  .logo{ font-weight:700; letter-spacing:.3px }
+  .sp{ flex:1 }
+  .pill{ border:1px solid var(--ring); padding:6px 10px; border-radius:999px; display:inline-flex; gap:8px; align-items:center; background:var(--elev2) }
+  .pill input[type="text"]{ background:transparent; border:none; outline:none; width:280px; color:var(--text) }
+  .btn{
+    border:1px solid var(--ring); background:var(--elev2); color:var(--text);
+    padding:8px 12px; border-radius:10px; cursor:pointer; transition:transform .06s ease, background .2s; display:inline-flex; gap:8px; align-items:center;
+  }
+  .btn:hover{ transform: translateY(-1px) }
+  .btn:active{ transform: translateY(0) }
+  .select{ padding:8px 10px; border-radius:10px; border:1px solid var(--ring); background:var(--elev2); color:var(--text) }
+
+  /* Player */
+  .player{ grid-area: player; display:flex; flex-direction:column; gap:10px }
+  .frame{ aspect-ratio: 16/9; border:none; width:100%; border-radius:12px; overflow:hidden; }
+  .frame iframe{ width:100%; height:100% }
+  .meta{ display:flex; gap:10px; align-items:center; padding:10px 12px }
+  .title{ font-weight:600; flex:1; min-width:0; text-overflow:ellipsis; white-space:nowrap; overflow:hidden }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap }
+  .chip{ font-size:12px; padding:6px 10px; border-radius:999px; background:var(--elev2); border:1px solid var(--ring) }
+  .theatre{ background:var(--elev2); border:1px dashed var(--ring) }
+
+  /* Chat */
+  .chat{ grid-area: chat; display:flex; flex-direction:column; min-height:0 }
+  .chat-header{ display:flex; align-items:center; gap:10px; padding:10px 12px }
+  .avatar{ width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg, var(--accent), #6e6e6e); display:grid; place-items:center; color:white; font-weight:700 }
+  .status-dot{ width:8px; height:8px; border-radius:50%; background:var(--success); margin-left:auto; box-shadow:0 0 0 4px color-mix(in oklab, var(--success) 30%, transparent) }
+  .chat-body{ flex:1; overflow:auto; padding:14px 12px; display:flex; flex-direction:column; gap:10px; scroll-behavior:smooth }
+  .bubble{ max-width:78%; padding:10px 12px; border-radius:14px; position:relative; word-wrap:break-word; line-height:1.35; box-shadow: var(--shadow) }
+  .bubble.me{ margin-left:auto; background:var(--bubble-me); color:var(--bubble-me-text) }
+  .bubble.them{ margin-right:auto; background:var(--bubble-them) }
+  .bubble .metaRow{ display:flex; align-items:center; gap:8px; font-size:11px; opacity:.8; margin-top:4px }
+  .ticks{ display:inline-flex; gap:2px; margin-left:4px }
+  .tick{ width:12px; height:12px; }
+  .tick svg{ width:12px; height:12px; fill:currentColor; opacity:.7 }
+  .tick.read{ color:#00b2ff }
+  .thumb{ margin-top:8px; border-radius:10px; overflow:hidden; border:1px solid var(--ring) }
+  .thumb img{ max-width:220px; height:auto; display:block }
+
+  .composer{ padding:10px; display:flex; gap:8px; align-items:center }
+  .composer .field{ flex:1; display:flex; align-items:center; gap:8px; border:1px solid var(--ring); background:var(--elev2); padding:8px 10px; border-radius:12px }
+  .composer input[type="text"]{ flex:1; border:none; outline:none; background:transparent; color:var(--text) }
+  .icon-btn{ background:transparent; border:none; color:var(--muted); cursor:pointer; padding:6px; border-radius:8px }
+  .icon-btn:hover{ color:var(--accent) }
+  .send{ background:var(--accent); color:#0b0d11; border:none; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:700 }
+
+  .typing{ display:flex; gap:4px; align-items:center; padding:0 12px 8px }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--muted); opacity:.8; animation: bounce .9s infinite alternate }
+  .dot:nth-child(2){ animation-delay:.15s } .dot:nth-child(3){ animation-delay:.3s }
+  @keyframes bounce{ to{ transform: translateY(-4px); opacity:.5 } }
+
+  /* Mobile tabs */
+  .tabs{ display:none; grid-area: tabs; padding:6px; gap:6px }
+  .tab{ flex:1; text-align:center; border:1px solid var(--ring); padding:10px; border-radius:10px; background:var(--elev2); cursor:pointer }
+  .statusbar{ grid-area: status; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; font-size:12px }
+  .bar{ height:6px; background:var(--elev2); border:1px solid var(--ring); border-radius:6px; overflow:hidden; flex:1 }
+  .fill{ height:100%; width:0%; background:linear-gradient(90deg, var(--accent), #22d3ee) }
+  .right{ display:flex; gap:8px; align-items:center }
+
+  @media (max-width: 980px){
+    .player{ display:none }
+    .chat{ display:none }
+    .content--video .player{ display:flex }
+    .content--chat .chat{ display:flex }
+    .tabs{ display:flex }
+    .app{ grid-template-areas: "topbar" "tabs" "content" "status"; }
+    .content{ grid-area: content; display:block }
+  }
+
+  /* Accessibility */
+  @media (prefers-reduced-motion: reduce){
+    .chat-body{ scroll-behavior:auto }
+    .dot{ animation:none }
+    .btn:hover{ transform:none }
+  }
+</style>
+</head>
+<body data-theme="desi">
+  <div class="app content content--video">
+    <!-- Top bar -->
+    <div class="topbar card">
+      <div class="logo">StreamChat Pro</div>
+      <div class="pill" title="Paste YouTube link and Load">
+        <span>🔗</span>
+        <input id="ytUrl" type="text" placeholder="Paste YouTube link (e.g., https://youtu.be/...)">
+        <button class="btn" id="loadBtn">Load</button>
+      </div>
+      <div class="sp"></div>
+      <select id="theme" class="select" title="Theme">
+        <option value="">Classic</option>
+        <option value="neon">Neon</option>
+        <option value="monsoon">Monsoon</option>
+        <option value="desi" selected>Desi</option>
+      </select>
+      <button class="btn" id="theatreBtn" title="Theatre mode">Theatre</button>
+    </div>
+
+    <!-- Mobile tabs -->
+    <div class="tabs">
+      <div class="tab" id="tabVideo">🎬 Video</div>
+      <div class="tab" id="tabChat">💬 Chat</div>
+    </div>
+
+    <!-- Player area -->
+    <div class="player">
+      <div class="card frame" id="playerCard">
+        <iframe id="playerFrame" src="" title="YouTube"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>
+      <div class="card meta">
+        <div class="title" id="videoTitle">No video loaded yet</div>
+        <div class="chips">
+          <span class="chip">rel=0</span>
+          <span class="chip">modest</span>
+          <span class="chip">jsapi</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat area -->
+    <div class="chat card">
+      <div class="chat-header">
+        <div class="avatar">VC</div>
+        <div>
+          <div style="font-weight:600">Vaibhav’s Circle</div>
+          <div style="font-size:12px; color:var(--muted)">Watching together</div>
+        </div>
+        <div class="status-dot" title="Online"></div>
+      </div>
+
+      <div class="chat-body" id="chatBody" aria-live="polite"></div>
+
+      <div class="typing" id="typing" style="display:none">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        <span style="margin-left:6px; color:var(--muted); font-size:12px">Someone is typing…</span>
+      </div>
+
+      <div class="composer">
+        <button class="icon-btn" id="emojiBtn" title="Emoji">😊</button>
+        <div class="field">
+          <input id="msgInput" type="text" placeholder="Type a message… (Shift+Enter = newline)" autocomplete="off">
+          <input id="file" type="file" accept="image/*" hidden>
+          <button class="icon-btn" id="attachBtn" title="Attach image">📎</button>
+        </div>
+        <button class="send" id="sendBtn">Send</button>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="statusbar card">
+      <div class="bar"><div class="fill" id="progress"></div></div>
+      <div class="right">
+        <span id="timeLabel">00:00 / 00:00</span>
+        <span class="chip" id="netHint">Ready</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Emoji popover -->
+  <div id="emojiPanel" class="card" style="position:fixed; bottom:86px; left:16px; padding:8px; display:none; gap:6px; max-width:320px">
+    <div id="emojiGrid" style="display:grid; grid-template-columns: repeat(8, 1fr); gap:6px; font-size:20px; padding:4px"></div>
+  </div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+  // ---------- Utilities ----------
+  const $ = sel => document.querySelector(sel);
+  const fmt = s => {
+    s = Math.max(0, Math.floor(s));
+    const m = Math.floor(s/60); const ss = (s%60).toString().padStart(2,'0');
+    return m.toString().padStart(2,'0') + ":" + ss;
+  };
+  function parseYouTubeId(url){
+    if(!url) return "";
+    // Accept full URLs or IDs
+    try{
+      const u = new URL(url, location.href);
+      if(u.hostname.includes("youtu.be")) return u.pathname.slice(1);
+      if(u.hostname.includes("youtube.com")){
+        if(u.searchParams.get("v")) return u.searchParams.get("v");
+        const m = u.pathname.match(/\/shorts\/([^/?#]+)/); if(m) return m[1];
+      }
+      return url; // might already be an ID
+    }catch{ return url; }
+  }
+
+  // ---------- State ----------
+  let themeSel = $("#theme");
+  let theatre = false;
+  let player, duration = 0, ready = false;
+  let chat = []; // {id, who, text, at?, time, status, img?}
+  let atBottom = true;
+
+  // ---------- Player ----------
+  window.onYouTubeIframeAPIReady = () => {
+    player = new YT.Player('playerFrame', {
+      videoId: 'tgbNymZ7vqY',
+      playerVars: { rel:0, modestbranding:1, controls:1, enablejsapi:1, origin:location.origin },
+      events: {
+        onReady: ev => {
+          ready = true;
+          try{ duration = Math.floor(player.getDuration() || 0); }catch{}
+          $("#videoTitle").textContent = player.getVideoData().title || "Loaded video";
+          updateTime();
+          tick(); // start progress loop
+        },
+        onStateChange: ev => {
+          // 1=playing, 2=paused
+          if(ev.data === YT.PlayerState.PLAYING) $("#netHint").textContent = "Playing";
+          else if(ev.data === YT.PlayerState.PAUSED) $("#netHint").textContent = "Paused";
+          else if(ev.data === YT.PlayerState.BUFFERING) $("#netHint").textContent = "Buffering…";
+        }
+      }
+    });
+  };
+
+  function loadVideoFromInput(){
+    const id = parseYouTubeId($("#ytUrl").value.trim());
+    if(!id) return;
+    player.loadVideoById(id);
+    setTimeout(()=>{ $("#videoTitle").textContent = player.getVideoData().title || "Loaded video"; }, 600);
+    $("#netHint").textContent = "Loaded";
+  }
+
+  function seekTo(sec){
+    if(!ready) return;
+    player.seekTo(sec, true);
+    player.playVideo();
+  }
+
+  function updateTime(){
+    let t = 0; try{ t = player.getCurrentTime() || 0; duration = player.getDuration() || duration; }catch{}
+    $("#timeLabel").textContent = `${fmt(t)} / ${fmt(duration||0)}`;
+    const pct = duration? (100*t/duration) : 0;
+    $("#progress").style.width = pct.toFixed(2)+"%";
+  }
+  function tick(){
+    updateTime();
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- Chat rendering ----------
+  const body = $("#chatBody");
+  function renderChat(){
+    const frag = document.createDocumentFragment();
+    for(const msg of chat){
+      const div = document.createElement("div");
+      div.className = "bubble " + (msg.who === "me" ? "me" : "them");
+      let html = "";
+      if(msg.text){
+        html += sanitizeText(msg.text)
+          .replace(/\[?(\d{1,2}):([0-5]\d)\]?/g, (m, mm, ss)=>{ // timestamp to chip
+            const sec = (+mm)*60 + (+ss);
+            return `<span class="chip" data-at="${sec}" style="cursor:pointer">⏱ ${mm}:${ss}</span>`;
+          });
+      }
+      if(msg.img){
+        html += `<div class="thumb"><img alt="attachment" src="${msg.img}"></div>`;
+      }
+      html += `<div class="metaRow"><span>${msg.time}</span>${msg.at!==undefined?`<span>• at ${fmt(msg.at)}</span>`:""}`;
+      if(msg.who === "me"){
+        html += `<span class="ticks" title="${msg.status}">
+          ${tickIcon(msg.status!=="sent")}
+          ${tickIcon(msg.status==="read", true)}
+        </span>`;
+      }
+      html += `</div>`;
+      div.innerHTML = html;
+      frag.appendChild(div);
+    }
+    body.innerHTML = "";
+    body.appendChild(frag);
+    if(atBottom) body.scrollTo({ top: body.scrollHeight });
+  }
+
+  function sanitizeText(t){
+    return t.replace(/[&<>]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;" }[c]));
+  }
+  function tickIcon(on, read){
+    const cls = "tick" + (read?" read":"");
+    return `<span class="${cls}" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="${on? 'M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z' : ''}"/></svg>
+    </span>`;
+  }
+
+  function nowTime(){
+    const d = new Date();
+    const hh = d.getHours().toString().padStart(2,'0');
+    const mm = d.getMinutes().toString().padStart(2,'0');
+    return `${hh}:${mm}`;
+  }
+
+  function addMessage({who, text, at, img}){
+    const msg = {
+      id: crypto.randomUUID?.() || String(Math.random()).slice(2),
+      who, text, at, img, time: nowTime(), status: who==="me" ? "sent":""
+    };
+    chat.push(msg);
+    renderChat();
+    // update delivery
+    if(who==="me"){
+      setTimeout(()=>{ msg.status="delivered"; renderChat(); }, 400);
+      setTimeout(()=>{ msg.status="read"; renderChat(); }, 1200);
+    }
+    // Auto-reply simulation
+    maybeAutoReply(msg);
+  }
+
+  function maybeAutoReply(last){
+    if(last.who !== "me") return;
+    const replies = [
+      "Nice cut! 🔥",
+      "सुना? 2:31 पर vibe आ जाती है!",
+      "Rewind that transition.",
+      "Beat drop incoming… 01:12",
+      "Cinematic रंग—love it.",
+    ];
+    const pick = replies[Math.floor(Math.random()*replies.length)];
+    $("#typing").style.display = "flex";
+    setTimeout(()=>{
+      $("#typing").style.display = "none";
+      // Pull timestamp from reply if present
+      const m = pick.match(/(\d{1,2}):([0-5]\d)/);
+      addMessage({ who:"them", text: pick, at: m ? (+m[1])*60 + (+m[2]) : undefined });
+    }, 900 + Math.random()*900);
+  }
+
+  // ---------- Composer ----------
+  const input = $("#msgInput");
+  $("#sendBtn").addEventListener("click", send);
+  input.addEventListener("keydown", e=>{
+    if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+  });
+  function send(){
+    const text = input.value.trim();
+    if(!text && !lastImageData) return;
+    const atMatch = text.match(/(\d{1,2}):([0-5]\d)/);
+    const at = atMatch ? (+atMatch[1])*60 + (+atMatch[2]) : undefined;
+    addMessage({ who:"me", text: text || "", at, img: lastImageData || undefined });
+    input.value = "";
+    lastImageData = null;
+  }
+
+  // Tapping timestamp chips seeks
+  body.addEventListener("click", e=>{
+    const chip = e.target.closest(".chip[data-at]");
+    if(chip){ const sec = +chip.getAttribute("data-at"); seekTo(sec); }
+  }, { passive:true });
+
+  // Scroll anchoring
+  body.addEventListener("scroll", ()=>{
+    atBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 8;
+  }, { passive:true });
+
+  // ---------- Emoji ----------
+  const emojis = "😀😁😂🤣😅😊😍🥰😘😎🤩🤔🙃🤗😴🤤😮‍💨😮😱🤯😇😈👻💀🔥✨🎉🥳👍👏🙏💪👀💡🎬🎧🎥📷📱💬❤️🧡💛💚💙💜🤍🤎🖤🇮🇳".split("");
+  const grid = $("#emojiGrid");
+  const ep = $("#emojiPanel");
+  emojis.forEach(e=>{
+    const b = document.createElement("button");
+    b.className = "icon-btn";
+    b.textContent = e;
+    b.addEventListener("click", ()=>{
+      input.value += e;
+      input.focus();
+    });
+    grid.appendChild(b);
+  });
+  $("#emojiBtn").addEventListener("click", ()=>{
+    ep.style.display = ep.style.display === "none" ? "block" : "none";
+  });
+  document.addEventListener("click", (e)=>{
+    if(!ep.contains(e.target) && e.target !== $("#emojiBtn")) ep.style.display = "none";
+  });
+
+  // ---------- Attachments ----------
+  let lastImageData = null;
+  $("#attachBtn").addEventListener("click", ()=> $("#file").click());
+  $("#file").addEventListener("change", e=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{ lastImageData = reader.result; };
+    reader.readAsDataURL(f);
+  });
+
+  // ---------- Topbar controls ----------
+  $("#loadBtn").addEventListener("click", loadVideoFromInput);
+  themeSel.addEventListener("change", ()=> {
+    document.body.setAttribute("data-theme", themeSel.value || "");
+  });
+  $("#theatreBtn").addEventListener("click", ()=>{
+    theatre = !theatre;
+    $("#playerCard").classList.toggle("theatre", theatre);
+  });
+
+  // ---------- Mobile tabs ----------
+  $("#tabVideo").addEventListener("click", ()=> switchContent(true));
+  $("#tabChat").addEventListener("click", ()=> switchContent(false));
+  function switchContent(video){
+    const app = document.querySelector(".app");
+    app.classList.toggle("content--video", video);
+    app.classList.toggle("content--chat", !video);
+  }
+
+  // ---------- Seed chat ----------
+  const seed = [
+    { who:"them", text:"Ready? Paste a YouTube link above and hit Load." },
+    { who:"me", text:"On it. Also, check 00:45 for that cut.", at:45 },
+    { who:"them", text:"वो ambience कमाल का है—1:32." , at:92 }
+  ];
+  seed.forEach(addMessage);
+
+  // Ensure initial bottom lock
+  setTimeout(()=>{ body.scrollTop = body.scrollHeight; }, 0);
+  </script>
+</body>
+</html>
